@@ -1,11 +1,14 @@
-"""Phase 2: Compute sprint metrics, engineer metrics, and detect risk alerts."""
+"""Phase 2: Compute sprint metrics, engineer metrics, AI summaries, DORA, and risk alerts."""
 
 import statistics
 from datetime import datetime, date, timedelta
 from api.models import (
     Repo, Issue, PullRequest, Sprint, IssueSprintMap,
-    SprintMetric, EngineerSprintMetric, Alert, Threshold, db,
+    SprintMetric, EngineerSprintMetric, AISummary, DeployEvent, Incident,
+    Alert, Threshold, db,
 )
+from . import ollama_client as llm
+from . import prompts
 
 
 def iso_week_range(year, week_start, num_sprints=12):
@@ -323,3 +326,122 @@ def detect_alerts():
 
     db.session.commit()
     return alerts_created
+
+
+def _fetch_metric_dict(sprint_id):
+    metric = SprintMetric.query.filter_by(sprint_id=sprint_id).first()
+    if not metric:
+        return {}
+    return {
+        "velocity_ratio": float(metric.velocity_ratio) if metric.velocity_ratio else None,
+        "cycle_time_mean_hours": float(metric.cycle_time_mean_hours) if metric.cycle_time_mean_hours else None,
+        "cycle_time_median_hours": float(metric.cycle_time_median_hours) if metric.cycle_time_median_hours else None,
+        "bugs_introduced": metric.bugs_introduced or 0,
+        "capacity_ratio": float(metric.capacity_ratio) if metric.capacity_ratio else None,
+        "planned_points": float(metric.planned_points) if metric.planned_points else 0,
+        "completed_points": float(metric.completed_points) if metric.completed_points else 0,
+        "carry_over_points": float(metric.carry_over_points) if metric.carry_over_points else 0,
+    }
+
+
+def generate_ai_summaries(persona="sdm"):
+    sprints = Sprint.query.order_by(Sprint.start_date.desc()).all()
+    results = {"generated": 0, "skipped": 0, "errors": 0}
+
+    if not llm.is_available():
+        return {"generated": 0, "skipped": len(sprints), "errors": 0, "reason": "LLM unavailable"}
+
+    for sprint in sprints:
+        existing = AISummary.query.filter_by(
+            sprint_id=sprint.id, persona_level=persona
+        ).first()
+        if existing and existing.reviewed:
+            results["skipped"] += 1
+            continue
+
+        metrics = _fetch_metric_dict(sprint.id)
+        if not metrics.get("velocity_ratio") and not metrics.get("cycle_time_mean_hours"):
+            results["skipped"] += 1
+            continue
+
+        prompt = prompts.sdm_summary_prompt(metrics)
+        system = prompts.SDM_SUMMARY_SYSTEM
+        text = llm.chat(prompt, system=system)
+
+        if text is None:
+            results["errors"] += 1
+            continue
+
+        if existing:
+            existing.summary_text = text
+        else:
+            db.session.add(AISummary(
+                sprint_id=sprint.id,
+                persona_level=persona,
+                summary_text=text,
+                model_used=llm.OMLX_MODEL,
+            ))
+        results["generated"] += 1
+
+    db.session.commit()
+    return results
+
+
+def compute_dora_metrics():
+    sprints = Sprint.query.all()
+    results = []
+
+    for sprint in sprints:
+        deploys = DeployEvent.query.filter(
+            DeployEvent.deployed_at >= sprint.start_date.isoformat(),
+            DeployEvent.deployed_at <= (sprint.end_date + timedelta(days=1)).isoformat(),
+        ).all()
+
+        total_deploys = len(deploys)
+        sprint_weeks = max((sprint.end_date - sprint.start_date).days / 7, 1)
+        deploy_freq = round(total_deploys / sprint_weeks, 2) if total_deploys else None
+
+        lead_times = []
+        for d in deploys:
+            prs = PullRequest.query.filter(
+                PullRequest.repo_id == d.repo_id,
+                PullRequest.merged_at.isnot(None),
+                PullRequest.merged_at <= d.deployed_at,
+            ).order_by(PullRequest.merged_at.desc()).limit(5).all()
+            for pr in prs:
+                if pr.first_commit_at and pr.merged_at:
+                    lt = (pr.merged_at - pr.first_commit_at).total_seconds() / 3600
+                    lead_times.append(lt)
+        lead_time = round(statistics.mean(lead_times), 2) if lead_times else None
+
+        incidents = Incident.query.filter(
+            Incident.created_at >= sprint.start_date.isoformat(),
+            Incident.created_at <= (sprint.end_date + timedelta(days=1)).isoformat(),
+        ).all()
+
+        mttr_values = [i.mttr_hours for i in incidents if i.mttr_hours is not None]
+        mttr = round(statistics.mean(mttr_values), 2) if mttr_values else None
+
+        failed = sum(1 for i in incidents if i.is_change_failure)
+        cfr = round(failed / total_deploys, 4) if total_deploys else None
+
+        metric = SprintMetric.query.filter_by(sprint_id=sprint.id).first()
+        if not metric:
+            metric = SprintMetric(sprint_id=sprint.id)
+            db.session.add(metric)
+
+        metric.deploy_frequency = deploy_freq
+        metric.lead_time_hours = lead_time
+        metric.mttr_hours = mttr
+        metric.change_failure_rate = cfr
+
+        results.append({
+            "sprint": sprint.name,
+            "deploy_frequency": deploy_freq,
+            "lead_time_hours": lead_time,
+            "mttr_hours": mttr,
+            "change_failure_rate": cfr,
+        })
+
+    db.session.commit()
+    return results

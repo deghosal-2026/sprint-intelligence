@@ -18,6 +18,79 @@ function MetricCard({ title, value, subtitle, color }) {
   );
 }
 
+function DORAGauge({ label, value, unit, score, color }) {
+  const pct = Math.min(Math.max((score ?? 0) * 100, 0), 100);
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-16 h-16 mb-1">
+        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="6" />
+          <circle cx="32" cy="32" r="28" fill="none" stroke={color || "#3b82f6"} strokeWidth="6"
+            strokeDasharray={`${(pct / 100) * 176} 176`} strokeLinecap="round" />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">
+          {value ?? "--"}
+        </span>
+      </div>
+      <span className="text-xs text-gray-500 text-center">{label}</span>
+      {unit && <span className="text-[10px] text-gray-400">{unit}</span>}
+    </div>
+  );
+}
+
+function SummaryCard({ summary, onToggleReview }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!summary) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">AI Summary</h3>
+        <p className="text-sm text-gray-400">Run poller to generate.</p>
+      </div>
+    );
+  }
+
+  const bullets = summary.summary ? summary.summary.split("\n").filter(Boolean) : [];
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(summary.summary);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4 mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-gray-700">AI Summary</h3>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1 text-xs text-gray-400">
+            <input type="checkbox" checked={summary.reviewed} onChange={onToggleReview} />
+            Reviewed
+          </label>
+          <button onClick={handleCopy}
+            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600">
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+      <ul className="space-y-1">
+        {bullets.map((b, i) => (
+          <li key={i} className="text-sm text-gray-700 flex gap-2">
+            <span className="text-blue-500 shrink-0">→</span>
+            <span>{b}</span>
+          </li>
+        ))}
+        {bullets.length === 0 && (
+          <li className="text-sm text-gray-400">{summary.summary}</li>
+        )}
+      </ul>
+      <p className="text-[10px] text-gray-400 mt-2">
+        Generated with {summary.model_used} &middot; {summary.generated_at ? new Date(summary.generated_at).toLocaleString() : ""}
+      </p>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [sprints, setSprints] = useState([]);
   const [selectedSprint, setSelectedSprint] = useState(null);
@@ -25,6 +98,7 @@ export default function Dashboard() {
   const [trends, setTrends] = useState([]);
   const [engineers, setEngineers] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [summary, setSummary] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/sprints`)
@@ -49,6 +123,9 @@ export default function Dashboard() {
     fetch(`${API}/alerts?sprint_id=${selectedSprint}`)
       .then((r) => r.json())
       .then(setAlerts);
+    fetch(`${API}/metrics/${selectedSprint}/summary`)
+      .then((r) => r.json())
+      .then(setSummary);
   }, [selectedSprint]);
 
   const fmtHours = (h) => {
@@ -57,13 +134,26 @@ export default function Dashboard() {
     return `${(h / 24).toFixed(1)}d`;
   };
 
+  const doraScore = (val, type) => {
+    if (val == null) return null;
+    if (type === "deploy_freq") return Math.min(val / 10, 1);
+    if (type === "lead_time") return Math.max(1 - val / 168, 0);
+    if (type === "mttr") return Math.max(1 - val / 24, 0);
+    if (type === "cfr") return 1 - val;
+    return null;
+  };
+
+  const doraColor = (score) => {
+    if (score == null) return "#d1d5db";
+    if (score >= 0.8) return "#22c55e";
+    if (score >= 0.5) return "#eab308";
+    return "#ef4444";
+  };
+
   return (
     <div>
       <div className="mb-4 flex items-center gap-4">
-        <select
-          className="border rounded px-3 py-1.5 text-sm bg-white shadow-sm"
-          value="sdm"
-        >
+        <select className="border rounded px-3 py-1.5 text-sm bg-white shadow-sm" value="sdm">
           <option value="sdm">SDM</option>
           <option value="junior">Junior Engineer</option>
           <option value="senior">Senior Engineer</option>
@@ -75,36 +165,48 @@ export default function Dashboard() {
           onChange={(e) => setSelectedSprint(Number(e.target.value))}
         >
           {sprints.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
+            <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard
-          title="Velocity"
+        <MetricCard title="Velocity"
           value={metrics ? `${metrics.completed_points ?? 0} / ${metrics.planned_points ?? 0}` : "--"}
           subtitle={`Ratio: ${metrics?.velocity_ratio != null ? (metrics.velocity_ratio * 100).toFixed(0) + "%" : "--"}`}
-          color={metrics?.velocity_ratio >= 0.8 ? "text-green-600" : "text-yellow-600"}
-        />
-        <MetricCard
-          title="PR Cycle Time"
+          color={metrics?.velocity_ratio >= 0.8 ? "text-green-600" : "text-yellow-600"} />
+        <MetricCard title="PR Cycle Time"
           value={fmtHours(metrics?.cycle_time_mean_hours)}
-          subtitle={`P90: ${fmtHours(metrics?.cycle_time_p90_hours)}`}
-        />
-        <MetricCard
-          title="Bug Rate"
+          subtitle={`P90: ${fmtHours(metrics?.cycle_time_p90_hours)}`} />
+        <MetricCard title="Bug Rate"
           value={metrics?.bugs_introduced != null ? `${metrics.bugs_introduced} / ${metrics.bugs_closed}` : "--"}
-          subtitle={`Rate: ${metrics?.bug_regression_rate != null ? (metrics.bug_regression_rate * 100).toFixed(1) + "%" : "--"}`}
-        />
-        <MetricCard
-          title="Capacity"
+          subtitle={`Rate: ${metrics?.bug_regression_rate != null ? (metrics.bug_regression_rate * 100).toFixed(1) + "%" : "--"}`} />
+        <MetricCard title="Capacity"
           value={metrics?.capacity_ratio != null ? `${(metrics.capacity_ratio * 100).toFixed(0)}%` : "--"}
-          subtitle={`${metrics?.actual_capacity ?? 0} / ${metrics?.planned_capacity ?? 0} pts`}
-        />
+          subtitle={`${metrics?.actual_capacity ?? 0} / ${metrics?.planned_capacity ?? 0} pts`} />
       </div>
+
+      <SummaryCard summary={summary} onToggleReview={() => {}} />
+
+      {metrics && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">DORA Pulse</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <DORAGauge label="Deploy Freq" value={metrics.deploy_frequency?.toFixed(1)} unit="/wk"
+              score={doraScore(metrics.deploy_frequency, "deploy_freq")}
+              color={doraColor(doraScore(metrics.deploy_frequency, "deploy_freq"))} />
+            <DORAGauge label="Lead Time" value={metrics.lead_time_hours?.toFixed(0)} unit="hrs"
+              score={doraScore(metrics.lead_time_hours, "lead_time")}
+              color={doraColor(doraScore(metrics.lead_time_hours, "lead_time"))} />
+            <DORAGauge label="MTTR" value={metrics.mttr_hours?.toFixed(1)} unit="hrs"
+              score={doraScore(metrics.mttr_hours, "mttr")}
+              color={doraColor(doraScore(metrics.mttr_hours, "mttr"))} />
+            <DORAGauge label="Change Fail" value={metrics.change_failure_rate != null ? `${(metrics.change_failure_rate * 100).toFixed(0)}%` : "--"}
+              score={doraScore(metrics.change_failure_rate, "cfr")}
+              color={doraColor(doraScore(metrics.change_failure_rate, "cfr"))} />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
@@ -121,7 +223,6 @@ export default function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">PR Cycle Time Trend</h3>
           <ResponsiveContainer width="100%" height={200}>
@@ -147,11 +248,14 @@ export default function Dashboard() {
                   a.severity === "critical" ? "text-red-500" :
                   a.severity === "warning" ? "text-yellow-500" : "text-blue-500"
                 }>
-                  {a.severity === "critical" ? "🔴" : a.severity === "warning" ? "⚠️" : "ℹ️"}
+                  {a.severity === "critical" ? "\u{1F534}" : a.severity === "warning" ? "\u26A0\uFE0F" : "\u2139\uFE0F"}
                 </span>
                 <div>
                   <p className="font-medium">{a.title}</p>
                   {a.description && <p className="text-xs text-gray-400">{a.description}</p>}
+                  {a.engineer_login && (
+                    <p className="text-xs text-orange-500 mt-0.5">Engineer: {a.engineer_login}</p>
+                  )}
                 </div>
               </div>
             ))}

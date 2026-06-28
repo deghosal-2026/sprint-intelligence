@@ -44,12 +44,12 @@
 - [x] [#40](https://github.com/deghosal-2026/sprint-intelligence/issues/40) F1.18 Admin poller controls
 - [x] [#41](https://github.com/deghosal-2026/sprint-intelligence/issues/41) F1.19 Admin system status
 
-### Tests (not started)
-- [ ] [#42](https://github.com/deghosal-2026/sprint-intelligence/issues/42) T1.1 Issues ingestion test
-- [ ] [#43](https://github.com/deghosal-2026/sprint-intelligence/issues/43) T1.2 PR cycle time test
-- [ ] [#44](https://github.com/deghosal-2026/sprint-intelligence/issues/44) T1.3 Sprint resolution test
-- [ ] [#45](https://github.com/deghosal-2026/sprint-intelligence/issues/45) T1.4 Velocity test
-- [ ] [#46](https://github.com/deghosal-2026/sprint-intelligence/issues/46) T1.5 Rate limiting test
+### Tests ✅
+- [x] [#42](https://github.com/deghosal-2026/sprint-intelligence/issues/42) T1.1 Issues ingestion test
+- [x] [#43](https://github.com/deghosal-2026/sprint-intelligence/issues/43) T1.2 PR cycle time test
+- [x] [#44](https://github.com/deghosal-2026/sprint-intelligence/issues/44) T1.3 Sprint resolution test
+- [x] [#45](https://github.com/deghosal-2026/sprint-intelligence/issues/45) T1.4 Velocity test
+- [x] [#46](https://github.com/deghosal-2026/sprint-intelligence/issues/46) T1.5 Rate limiting test
 
 ---
 
@@ -90,6 +90,9 @@
 - [ ] [#73](https://github.com/deghosal-2026/sprint-intelligence/issues/73) T2.5 Overloaded alert fires on WIP 5
 - [ ] [#74](https://github.com/deghosal-2026/sprint-intelligence/issues/74) T2.6 Scope creep alert fires on post-start issue
 - [ ] [#75](https://github.com/deghosal-2026/sprint-intelligence/issues/75) T2.7 DORA CFR correct with known deploys + incidents
+
+### Chores
+- [ ] [#141](https://github.com/deghosal-2026/sprint-intelligence/issues/141) C2.1 Update transform/seed scripts for chunked raw data
 
 **Gate:** AI summary for 12 sprints. 3 alert types. 4 DORA gauges. → M3
 

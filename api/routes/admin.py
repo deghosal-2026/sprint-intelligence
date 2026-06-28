@@ -1,10 +1,9 @@
-"""Admin API endpoints — system status, poller status."""
+"""Admin API endpoints — system status, poller status, AI summary management."""
 
-import os
-import requests as http_requests
-from flask import Blueprint, jsonify
-from api.models import db
-from api.poller import github_client as gh
+from flask import Blueprint, jsonify, request
+from api.models import db, AISummary
+from api.poller import github_client as gh, ollama_client as llm
+from api.poller.compute import generate_ai_summaries
 from api.routes.poller import POLLER_STATUS
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
@@ -19,19 +18,35 @@ def system():
     except Exception:
         pass
 
-    ollama_url = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
-    ollama_ok = False
-    try:
-        r = http_requests.get(f"{ollama_url}/api/tags", timeout=5)
-        ollama_ok = r.status_code == 200
-    except Exception:
-        pass
-
     gh_remaining = gh.get_rate_limit_remaining()
+    llm_ok = llm.is_available()
 
     return jsonify({
         "db": "connected" if db_ok else "disconnected",
-        "ollama": "connected" if ollama_ok else "disconnected",
+        "ollama": "connected" if llm_ok else "disconnected",
         "github_remaining": gh_remaining,
         "poller": POLLER_STATUS,
     })
+
+
+@bp.route("/summaries")
+def list_summaries():
+    summaries = AISummary.query.order_by(AISummary.generated_at.desc()).limit(50).all()
+    return jsonify([
+        {
+            "id": s.id,
+            "sprint_id": s.sprint_id,
+            "persona_level": s.persona_level,
+            "model_used": s.model_used,
+            "generated_at": s.generated_at.isoformat() if s.generated_at else None,
+            "reviewed": s.reviewed,
+        }
+        for s in summaries
+    ])
+
+
+@bp.route("/summaries/regenerate", methods=["POST"])
+def regenerate_summaries():
+    persona = request.args.get("persona", "sdm")
+    results = generate_ai_summaries(persona=persona)
+    return jsonify({"status": "ok", **results})

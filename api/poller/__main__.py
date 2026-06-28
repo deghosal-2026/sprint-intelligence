@@ -28,7 +28,7 @@ def main():
             print(f"\nFetch complete: {total_issues} issues, {total_prs} PRs across {len(results)} repos")
 
         if args.compute or args.full:
-            from .compute import resolve_sprints, map_issues_to_sprints, compute_sprint_metrics, compute_engineer_metrics, detect_alerts
+            from .compute import resolve_sprints, map_issues_to_sprints, compute_sprint_metrics, compute_engineer_metrics, compute_dora_metrics, detect_alerts, generate_ai_summaries
             print("\n=== Phase 2: Compute ===")
             sprint_map = resolve_sprints()
             print(f"  {len(sprint_map)} sprints resolved")
@@ -38,8 +38,12 @@ def main():
             print(f"  {len(metrics)} sprint metrics computed")
             eng_metrics = compute_engineer_metrics()
             print(f"  {len(eng_metrics)} engineer metrics computed")
+            dora = compute_dora_metrics()
+            print(f"  {len(dora)} DORA metric sets computed")
             alerts = detect_alerts()
             print(f"  {alerts} alerts detected")
+            ai_results = generate_ai_summaries()
+            print(f"  {ai_results['generated']} AI summaries generated ({ai_results['skipped']} skipped, {ai_results['errors']} errors)")
             print("\nCompute complete.")
 
 

@@ -30,6 +30,4 @@ Thumbs.db
 # Docker
 pgdata/
 
-# Test data
-data/raw/
-data/transformed/
+# Test data — tracked in git

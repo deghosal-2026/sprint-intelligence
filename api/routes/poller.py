@@ -16,19 +16,24 @@ def _run_phase1():
 def _run_phase2():
     from api.poller.compute import (
         resolve_sprints, map_issues_to_sprints,
-        compute_sprint_metrics, compute_engineer_metrics, detect_alerts,
+        compute_sprint_metrics, compute_engineer_metrics,
+        compute_dora_metrics, detect_alerts, generate_ai_summaries,
     )
     sprint_map = resolve_sprints()
     mapped = map_issues_to_sprints()
     metrics = compute_sprint_metrics()
     eng_metrics = compute_engineer_metrics()
+    dora = compute_dora_metrics()
     alerts = detect_alerts()
+    ai_results = generate_ai_summaries()
     return {
         "sprints": len(sprint_map),
         "issues_mapped": mapped,
         "sprint_metrics": len(metrics),
         "engineer_metrics": len(eng_metrics),
+        "dora_metrics": len(dora),
         "alerts": alerts,
+        "ai_summaries": ai_results,
     }
 
 

@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 from api.models import (
-    Sprint, SprintMetric, EngineerSprintMetric, IssueSprintMap,
+    Sprint, SprintMetric, EngineerSprintMetric, IssueSprintMap, AISummary,
     Issue, Repo, Alert, db,
 )
 
@@ -122,4 +122,20 @@ def list_alerts():
         }
         for a in alerts
     ])
+
+
+@bp.route("/metrics/<int:sprint_id>/summary")
+def sprint_ai_summary(sprint_id):
+    persona = request.args.get("persona", "sdm")
+    summary = AISummary.query.filter_by(
+        sprint_id=sprint_id, persona_level=persona
+    ).first()
+    if not summary:
+        return jsonify({"summary": None, "model_used": None})
+    return jsonify({
+        "summary": summary.summary_text,
+        "model_used": summary.model_used,
+        "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
+        "reviewed": summary.reviewed,
+    })
 
