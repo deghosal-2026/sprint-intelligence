@@ -1,7 +1,6 @@
 """Admin API endpoints — system status, poller status, AI summary management."""
 
-import threading
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 from api.models import db, AISummary
 from api.poller import github_client as gh, ollama_client as llm
 from api.poller.compute import generate_all_summaries

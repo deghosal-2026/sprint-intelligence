@@ -1,11 +1,11 @@
 """Phase 2: Compute sprint metrics, engineer metrics, AI summaries, DORA, and risk alerts."""
 
 import statistics
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from api.models import (
     Repo, Issue, PullRequest, Sprint, IssueSprintMap,
     SprintMetric, EngineerSprintMetric, AISummary, DeployEvent, Incident,
-    Alert, Threshold, db,
+    Alert, Threshold, TeamForecast, db,
 )
 from . import ollama_client as llm
 from . import prompts
@@ -548,6 +548,74 @@ def _generate_single_persona_summaries(persona):
                 model_used=llm.OMLX_MODEL,
             ))
         results["generated"] += 1
+
+    db.session.commit()
+    return results
+
+
+def compute_forecasts():
+    repos = Repo.query.filter(Repo.team.isnot(None)).all()
+    results = []
+
+    for repo in repos:
+        sprints = Sprint.query.filter_by(repo_id=repo.id).order_by(
+            Sprint.start_date.asc()
+        ).limit(12).all()
+        sprint_ids = [s.id for s in sprints]
+        metrics = SprintMetric.query.filter(
+            SprintMetric.sprint_id.in_(sprint_ids)
+        ).order_by(SprintMetric.sprint_id).all()
+
+        for field in ["velocity_ratio", "cycle_time_mean_hours", "bug_regression_rate",
+                       "deploy_frequency", "change_failure_rate"]:
+            values = [
+                float(getattr(m, field))
+                for m in metrics
+                if getattr(m, field) is not None
+            ]
+            if len(values) < 3:
+                continue
+
+            n = len(values)
+            x_mean = (n - 1) / 2
+            y_mean = sum(values) / n
+            numerator = sum((i - x_mean) * (v - y_mean) for i, v in enumerate(values))
+            denominator = sum((i - x_mean) ** 2 for i in range(n))
+            slope = numerator / denominator if denominator else 0
+            intercept = y_mean - slope * x_mean
+            forecast = intercept + slope * n
+            current = values[-1]
+
+            if slope > 0.01:
+                direction = "increasing"
+            elif slope < -0.01:
+                direction = "decreasing"
+            else:
+                direction = "stable"
+
+            existing = TeamForecast.query.filter_by(
+                team=repo.team, metric=field
+            ).first()
+            if existing:
+                fc = existing
+            else:
+                fc = TeamForecast(team=repo.team, metric=field)
+                db.session.add(fc)
+
+            fc.current_value = round(current, 4)
+            fc.forecast_value = round(forecast, 4)
+            fc.trend_direction = direction
+            fc.slope = round(slope, 6)
+            fc.computed_at = datetime.utcnow()
+
+            results.append({
+                "team": repo.team,
+                "metric": field,
+                "current": round(current, 4),
+                "forecast": round(forecast, 4),
+                "direction": direction,
+                "slope": round(slope, 6),
+            })
 
     db.session.commit()
     return results

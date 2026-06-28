@@ -1,6 +1,6 @@
 """Poller trigger endpoints — wraps Phase 1 and Phase 2."""
 
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify
 from api.models import db
 
 bp = Blueprint("poller", __name__, url_prefix="/api/poller")
@@ -17,7 +17,8 @@ def _run_phase2():
     from api.poller.compute import (
         resolve_sprints, map_issues_to_sprints,
         compute_sprint_metrics, compute_engineer_metrics,
-        compute_dora_metrics, detect_alerts, generate_all_summaries,
+        compute_dora_metrics, detect_alerts, compute_forecasts,
+        generate_all_summaries,
     )
     sprint_map = resolve_sprints()
     mapped = map_issues_to_sprints()
@@ -25,6 +26,7 @@ def _run_phase2():
     eng_metrics = compute_engineer_metrics()
     dora = compute_dora_metrics()
     alerts = detect_alerts()
+    forecasts = compute_forecasts()
     ai_results = generate_all_summaries()
     return {
         "sprints": len(sprint_map),

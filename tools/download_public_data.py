@@ -184,7 +184,7 @@ def run_all():
                 loaded = load_chunks(repo_dir, issues_prefix)
                 log(f"    issues: SKIP (already {len(loaded)} entries)")
             else:
-                log(f"    Fetching issues...")
+                log("    Fetching issues...")
                 try:
                     issues = fetch_issues(owner, repo_name, since_date, until_date)
                     n = save_chunks(issues, repo_dir, issues_prefix)
@@ -198,7 +198,7 @@ def run_all():
                 loaded = load_chunks(repo_dir, pulls_prefix)
                 log(f"    pulls:  SKIP (already {len(loaded)} entries)")
             else:
-                log(f"    Fetching PRs...")
+                log("    Fetching PRs...")
                 try:
                     pulls = fetch_pulls(owner, repo_name, since_date, until_date)
                     n = save_chunks(pulls, repo_dir, pulls_prefix)
@@ -211,9 +211,9 @@ def run_all():
         # Milestones
         milestones_file = repo_dir / "milestones.json"
         if milestones_file.exists():
-            log(f"  milestones: SKIP (already exists)")
+            log("  milestones: SKIP (already exists)")
         else:
-            log(f"  Fetching milestones...")
+            log("  Fetching milestones...")
             try:
                 milestones = fetch_paginated(
                     f"{BASE_URL}/repos/{owner}/{repo_name}/milestones",

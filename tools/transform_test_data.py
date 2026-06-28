@@ -4,7 +4,7 @@ import hashlib
 import json
 import math
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 REPO_TEAM_MAP = {
@@ -90,14 +90,14 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
 
     repo_dir = raw_dir / f"{owner}_{repo_name}"
     if not repo_dir.exists() or not repo_dir.is_dir():
-        print(f"    No data directory found, skipping")
+        print("    No data directory found, skipping")
         return None
 
     raw_issues = load_chunked(repo_dir, "issues")
     raw_pulls = load_chunked(repo_dir, "pulls")
 
     if not raw_issues:
-        print(f"    No issue files found, skipping")
+        print("    No issue files found, skipping")
         return None
 
     raw_milestones = []
@@ -336,7 +336,7 @@ def main():
     total_engineers = sum(len(td["engineers"]) for td in all_data.values())
 
     print(f"\n{'='*50}")
-    print(f"Transformation complete!")
+    print("Transformation complete!")
     print(f"  Teams: {len(all_data)}")
     print(f"  Engineers: {total_engineers}")
     print(f"  Sprints: {total_sprints}")

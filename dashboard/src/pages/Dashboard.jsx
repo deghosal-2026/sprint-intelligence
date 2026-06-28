@@ -91,6 +91,49 @@ function SummaryCard({ summary, onToggleReview }) {
   );
 }
 
+const METRIC_LABELS = {
+  velocity_ratio: "Velocity",
+  cycle_time_mean_hours: "Cycle Time",
+  bug_regression_rate: "Bug Rate",
+  deploy_frequency: "Deploy Freq",
+  change_failure_rate: "Change Fail",
+};
+
+function ForecastCard({ forecasts, team }) {
+  const teamForecasts = forecasts.filter((f) => f.team === team);
+  if (teamForecasts.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4 mb-6">
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">Trend Forecast (next sprint)</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {teamForecasts.map((f) => {
+          const dirColor = f.trend_direction === "increasing" ? "text-red-500" :
+                           f.trend_direction === "decreasing" ? "text-blue-500" : "text-gray-400";
+          const dirIcon = f.trend_direction === "increasing" ? "↑" :
+                          f.trend_direction === "decreasing" ? "↓" : "→";
+          return (
+            <div key={f.metric} className="border rounded p-2">
+              <p className="text-xs text-gray-500">{METRIC_LABELS[f.metric] || f.metric}</p>
+              <p className="text-lg font-bold text-gray-900">
+                {f.forecast_value != null
+                  ? f.metric === "cycle_time_mean_hours"
+                    ? `${f.forecast_value.toFixed(1)}h`
+                    : f.metric === "velocity_ratio" || f.metric === "bug_regression_rate" || f.metric === "change_failure_rate"
+                    ? `${(f.forecast_value * 100).toFixed(0)}%`
+                    : f.forecast_value.toFixed(1)
+                  : "--"}
+              </p>
+              <p className={`text-xs ${dirColor}`}>{dirIcon} {f.trend_direction}</p>
+              <p className="text-[10px] text-gray-400">now: {f.current_value != null ? f.current_value.toFixed(2) : "--"}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [sprints, setSprints] = useState([]);
   const [selectedSprint, setSelectedSprint] = useState(null);
@@ -105,6 +148,7 @@ export default function Dashboard() {
   const [orgQuarterly, setOrgQuarterly] = useState(null);
   const [teamQuarterly, setTeamQuarterly] = useState([]);
   const [patterns, setPatterns] = useState(null);
+  const [forecasts, setForecasts] = useState([]);
 
   const handlePersonaChange = (e) => {
     const p = e.target.value;
@@ -139,6 +183,10 @@ export default function Dashboard() {
     fetch(`${API}/patterns`)
       .then((r) => r.json())
       .then(setPatterns)
+      .catch(() => {});
+    fetch(`${API}/forecasts`)
+      .then((r) => r.json())
+      .then(setForecasts)
       .catch(() => {});
   }, []);
 
@@ -514,6 +562,7 @@ export default function Dashboard() {
           ))}
         </div>
       )}
+      <ForecastCard forecasts={forecasts} team={selectedTeam?.team} />
       <SDMDashboard sprintId={sprintIdForTeam(selectedTeam?.team)} />
     </>
   );
@@ -560,6 +609,30 @@ export default function Dashboard() {
       </div>
 
       <SummaryCard summary={summary} onToggleReview={() => {}} />
+
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Org Trend Forecasts (next sprint)</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+          {forecasts.slice(0, 15).map((f, i) => (
+            <div key={i} className="border rounded p-2">
+              <p className="text-xs text-gray-500">{f.team}</p>
+              <p className="text-xs font-medium text-gray-600">{METRIC_LABELS[f.metric] || f.metric}</p>
+              <p className="text-lg font-bold text-gray-900">
+                {f.forecast_value != null
+                  ? f.metric === "cycle_time_mean_hours"
+                    ? `${f.forecast_value.toFixed(1)}h`
+                    : f.metric === "velocity_ratio" || f.metric === "bug_regression_rate" || f.metric === "change_failure_rate"
+                    ? `${(f.forecast_value * 100).toFixed(0)}%`
+                    : f.forecast_value.toFixed(1)
+                  : "--"}
+              </p>
+              <p className={`text-xs ${f.trend_direction === "increasing" ? "text-red-500" : f.trend_direction === "decreasing" ? "text-blue-500" : "text-gray-400"}`}>
+                {f.trend_direction === "increasing" ? "↑" : f.trend_direction === "decreasing" ? "↓" : "→"} {f.trend_direction}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Team Quarterly Comparison</h3>

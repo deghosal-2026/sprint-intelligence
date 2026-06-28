@@ -208,6 +208,19 @@ class AISummary(db.Model):
     sprint = db.relationship("Sprint", backref=db.backref("ai_summaries", lazy="dynamic"))
 
 
+class TeamForecast(db.Model):
+    __tablename__ = "team_forecasts"
+    id = db.Column(db.Integer, primary_key=True)
+    team = db.Column(db.String(100), nullable=False)
+    metric = db.Column(db.String(100), nullable=False)
+    current_value = db.Column(db.Numeric)
+    forecast_value = db.Column(db.Numeric)
+    trend_direction = db.Column(db.String(20))
+    slope = db.Column(db.Numeric)
+    computed_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    __table_args__ = (db.UniqueConstraint("team", "metric"),)
+
+
 class Alert(db.Model):
     __tablename__ = "alerts"
     id = db.Column(db.Integer, primary_key=True)

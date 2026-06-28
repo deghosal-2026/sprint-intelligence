@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 import psycopg2
-from psycopg2.extras import execute_values
 
 TRANSFORMED_PATH = Path("data/transformed/sprintsense_test_data.json")
 DATABASE_URL = os.getenv(

@@ -204,5 +204,6 @@
 - [ ] [#138](https://github.com/deghosal-2026/sprint-intelligence/issues/138) C6.3 User guide — 4 tabs complete with content
 - [ ] [#139](https://github.com/deghosal-2026/sprint-intelligence/issues/139) C6.4 Code cleanup — linting, docstrings, dead code removal
 - [ ] [#140](https://github.com/deghosal-2026/sprint-intelligence/issues/140) C6.5 Final test run — full seed → compute → validate all 10 ACs
+- [ ] [#142](https://github.com/deghosal-2026/sprint-intelligence/issues/142) C6.6 Update screenshots with trend forecasts + final polish
 
 **Gate:** All 10 ACs from spec Section 8.4 pass. Dashboard load < 3s.

@@ -1,11 +1,9 @@
 """Dashboard API endpoints — metrics, sprints, engineers, teams, quarterly."""
 
-from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func, case
 from api.models import (
-    Sprint, SprintMetric, EngineerSprintMetric, IssueSprintMap, AISummary,
-    Issue, Repo, Alert, db,
+    Sprint, SprintMetric, EngineerSprintMetric, AISummary,
+    Repo, Alert, TeamForecast, db,
 )
 
 bp = Blueprint("dashboard", __name__, url_prefix="/api")
@@ -350,4 +348,25 @@ def sprint_ai_summary(sprint_id):
         "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
         "reviewed": summary.reviewed,
     })
+
+
+@bp.route("/forecasts")
+def forecasts():
+    team = request.args.get("team")
+    query = TeamForecast.query
+    if team:
+        query = query.filter_by(team=team)
+    forecasts = query.order_by(TeamForecast.team, TeamForecast.metric).all()
+    return jsonify([
+        {
+            "team": f.team,
+            "metric": f.metric,
+            "current_value": float(f.current_value) if f.current_value is not None else None,
+            "forecast_value": float(f.forecast_value) if f.forecast_value is not None else None,
+            "trend_direction": f.trend_direction,
+            "slope": float(f.slope) if f.slope is not None else None,
+            "computed_at": f.computed_at.isoformat() if f.computed_at else None,
+        }
+        for f in forecasts
+    ])
 
