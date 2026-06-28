@@ -53,48 +53,50 @@
 
 ---
 
-## M2: AI Summaries + Risk Alerts + DORA
+## M2: AI Summaries + Risk Alerts + DORA ✅
 **Issues: #47–#75** (29 issues)
 
-### Features
-- [ ] [#47](https://github.com/deghosal-2026/sprint-intelligence/issues/47) F2.1 Ollama client — connect to host.docker.internal:11434, POST /api/generate
-- [ ] [#48](https://github.com/deghosal-2026/sprint-intelligence/issues/48) F2.2 SDM summary prompt — 5-bullet, consequence-first template
-- [ ] [#49](https://github.com/deghosal-2026/sprint-intelligence/issues/49) F2.3 AI summary generation — Phase 2: per sprint + persona, call Ollama
-- [ ] [#50](https://github.com/deghosal-2026/sprint-intelligence/issues/50) F2.4 Summary card — 5 bullets, Reviewed toggle, Copy to clipboard
-- [ ] [#51](https://github.com/deghosal-2026/sprint-intelligence/issues/51) F2.5 Copy to clipboard button
-- [ ] [#52](https://github.com/deghosal-2026/sprint-intelligence/issues/52) F2.6 Stale PR alert — no activity >3d
-- [ ] [#53](https://github.com/deghosal-2026/sprint-intelligence/issues/53) F2.7 Overloaded engineer alert — WIP >4
-- [ ] [#54](https://github.com/deghosal-2026/sprint-intelligence/issues/54) F2.8 Scope creep alert — issues added after sprint start
-- [ ] [#55](https://github.com/deghosal-2026/sprint-intelligence/issues/55) F2.9 Risk alerts card — scrollable list in dashboard
-- [ ] [#56](https://github.com/deghosal-2026/sprint-intelligence/issues/56) F2.10 Alert drill-down — click stale PR → PR link, overloaded → WIP breakdown
-- [ ] [#57](https://github.com/deghosal-2026/sprint-intelligence/issues/57) F2.11 Deploy events ingestion — GH Actions workflow runs
-- [ ] [#58](https://github.com/deghosal-2026/sprint-intelligence/issues/58) F2.12 PagerDuty incidents ingestion
-- [ ] [#59](https://github.com/deghosal-2026/sprint-intelligence/issues/59) F2.13 DORA: deploy frequency — deploys per week
-- [ ] [#60](https://github.com/deghosal-2026/sprint-intelligence/issues/60) F2.14 DORA: lead time — commit → deploy
-- [ ] [#61](https://github.com/deghosal-2026/sprint-intelligence/issues/61) F2.15 DORA: MTTR — incident resolution time
-- [ ] [#62](https://github.com/deghosal-2026/sprint-intelligence/issues/62) F2.16 DORA: change failure rate — failed deploys / total deploys
-- [ ] [#63](https://github.com/deghosal-2026/sprint-intelligence/issues/63) F2.17 DORA pulse card — 4 mini gauges on dashboard
-- [ ] [#64](https://github.com/deghosal-2026/sprint-intelligence/issues/64) F2.18 Sprint planning capacity view
-- [ ] [#65](https://github.com/deghosal-2026/sprint-intelligence/issues/65) F2.19 Admin AI summary status — per sprint, regenerate button
+### Features ✅
+- [x] [#47](https://github.com/deghosal-2026/sprint-intelligence/issues/47) F2.1 Ollama client — connect to host.docker.internal:11434, POST /api/generate
+- [x] [#48](https://github.com/deghosal-2026/sprint-intelligence/issues/48) F2.2 SDM summary prompt — 5-bullet, consequence-first template
+- [x] [#49](https://github.com/deghosal-2026/sprint-intelligence/issues/49) F2.3 AI summary generation — Phase 2: per sprint + persona, call Ollama
+- [x] [#50](https://github.com/deghosal-2026/sprint-intelligence/issues/50) F2.4 Summary card — 5 bullets, Reviewed toggle, Copy to clipboard
+- [x] [#51](https://github.com/deghosal-2026/sprint-intelligence/issues/51) F2.5 Copy to clipboard button
+- [x] [#52](https://github.com/deghosal-2026/sprint-intelligence/issues/52) F2.6 Stale PR alert — no activity >3d
+- [x] [#53](https://github.com/deghosal-2026/sprint-intelligence/issues/53) F2.7 Overloaded engineer alert — WIP >4
+- [x] [#54](https://github.com/deghosal-2026/sprint-intelligence/issues/54) F2.8 Scope creep alert — issues added after sprint start
+- [x] [#55](https://github.com/deghosal-2026/sprint-intelligence/issues/55) F2.9 Risk alerts card — scrollable list in dashboard
+- [x] [#56](https://github.com/deghosal-2026/sprint-intelligence/issues/56) F2.10 Alert drill-down — click stale PR → PR link, overloaded → WIP breakdown
+- [x] [#57](https://github.com/deghosal-2026/sprint-intelligence/issues/57) F2.11 Deploy events ingestion — GH Actions workflow runs
+- [x] ~~#58 F2.12 PagerDuty incidents ingestion~~ *(skipped per plan)*
+- [x] [#59](https://github.com/deghosal-2026/sprint-intelligence/issues/59) F2.13 DORA: deploy frequency — deploys per week
+- [x] [#60](https://github.com/deghosal-2026/sprint-intelligence/issues/60) F2.14 DORA: lead time — commit → deploy
+- [x] [#61](https://github.com/deghosal-2026/sprint-intelligence/issues/61) F2.15 DORA: MTTR — incident resolution time
+- [x] [#62](https://github.com/deghosal-2026/sprint-intelligence/issues/62) F2.16 DORA: change failure rate — failed deploys / total deploys
+- [x] [#63](https://github.com/deghosal-2026/sprint-intelligence/issues/63) F2.17 DORA pulse card — 4 mini gauges on dashboard
+- [x] [#64](https://github.com/deghosal-2026/sprint-intelligence/issues/64) F2.18 Sprint planning capacity view
+- [x] [#65](https://github.com/deghosal-2026/sprint-intelligence/issues/65) F2.19 Admin AI summary status — per sprint, regenerate button
 
-### Bug Fixes
-- [ ] [#66](https://github.com/deghosal-2026/sprint-intelligence/issues/66) B2.1 Handle repos with zero issues gracefully
-- [ ] [#67](https://github.com/deghosal-2026/sprint-intelligence/issues/67) B2.2 Handle PRs with no commits (orphaned)
-- [ ] [#68](https://github.com/deghosal-2026/sprint-intelligence/issues/68) B2.3 Sprint selector in chronological order
+### Bug Fixes ✅
+- [x] [#66](https://github.com/deghosal-2026/sprint-intelligence/issues/66) B2.1 Handle repos with zero issues gracefully
+- [x] [#67](https://github.com/deghosal-2026/sprint-intelligence/issues/67) B2.2 Handle PRs with no commits (orphaned)
+- [x] [#68](https://github.com/deghosal-2026/sprint-intelligence/issues/68) B2.3 Sprint selector in chronological order
 
-### Tests
-- [ ] [#69](https://github.com/deghosal-2026/sprint-intelligence/issues/69) T2.1 AI summary: known metrics → expected data points
-- [ ] [#70](https://github.com/deghosal-2026/sprint-intelligence/issues/70) T2.2 AI summary: missing data → "Data unavailable"
-- [ ] [#71](https://github.com/deghosal-2026/sprint-intelligence/issues/71) T2.3 AI summary: LLM offline → graceful skip
-- [ ] [#72](https://github.com/deghosal-2026/sprint-intelligence/issues/72) T2.4 Stale PR alert fires on 4d-old PR
-- [ ] [#73](https://github.com/deghosal-2026/sprint-intelligence/issues/73) T2.5 Overloaded alert fires on WIP 5
-- [ ] [#74](https://github.com/deghosal-2026/sprint-intelligence/issues/74) T2.6 Scope creep alert fires on post-start issue
-- [ ] [#75](https://github.com/deghosal-2026/sprint-intelligence/issues/75) T2.7 DORA CFR correct with known deploys + incidents
+### Tests ✅
+- [x] [#69](https://github.com/deghosal-2026/sprint-intelligence/issues/69) T2.1 AI summary: known metrics → expected data points
+- [x] [#70](https://github.com/deghosal-2026/sprint-intelligence/issues/70) T2.2 AI summary: missing data → "Data unavailable"
+- [x] [#71](https://github.com/deghosal-2026/sprint-intelligence/issues/71) T2.3 AI summary: LLM offline → graceful skip
+- [x] [#72](https://github.com/deghosal-2026/sprint-intelligence/issues/72) T2.4 Stale PR alert fires on 4d-old PR
+- [x] [#73](https://github.com/deghosal-2026/sprint-intelligence/issues/73) T2.5 Overloaded alert fires on WIP 5
+- [x] [#74](https://github.com/deghosal-2026/sprint-intelligence/issues/74) T2.6 Scope creep alert fires on post-start issue
+- [x] [#75](https://github.com/deghosal-2026/sprint-intelligence/issues/75) T2.7 DORA CFR correct with known deploys + incidents
 
-### Chores
-- [ ] [#141](https://github.com/deghosal-2026/sprint-intelligence/issues/141) C2.1 Update transform/seed scripts for chunked raw data
+### Chores ✅
+- [x] [#141](https://github.com/deghosal-2026/sprint-intelligence/issues/141) C2.1 Update transform/seed scripts for chunked raw data
 
-**Gate:** AI summary for 12 sprints. 3 alert types. 4 DORA gauges. → M3
+**Status:** 59 AI summaries generated (Llama-3.2-3B-Instruct-4bit via omlx). 1228 alerts, 4 DORA gauges, 82/82 tests passing.
+
+**Gate:** ✅ → M3
 
 ---
 

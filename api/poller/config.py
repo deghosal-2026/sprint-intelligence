@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 import requests
 
 from api.models import Repo, LabelConfig, Threshold, db
@@ -17,9 +18,16 @@ def fetch_config():
     headers = {"Accept": "application/vnd.github.v3.raw"}
     if GITHUB_TOKEN:
         headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
-    resp = requests.get(CONFIG_URL, headers=headers, timeout=15)
-    resp.raise_for_status()
-    return resp.json()
+    try:
+        resp = requests.get(CONFIG_URL, headers=headers, timeout=15)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        here = Path(__file__).resolve().parent.parent.parent / "sprintsense-config.json"
+        if here.exists():
+            with open(here) as f:
+                return json.load(f)
+        raise
 
 
 def sync_config(config=None):

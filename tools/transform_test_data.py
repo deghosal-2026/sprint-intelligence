@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -66,28 +67,46 @@ def iso_week_range(year, week_start, num_sprints=12):
     return sprints
 
 
+def load_chunked(repo_dir, prefix):
+    """Load all chunked JSON files matching prefix_*.json, deduplicate by 'id'."""
+    items = []
+    seen = set()
+    for path in sorted(repo_dir.glob(f"{prefix}_*.json")):
+        with open(path) as f:
+            chunk = json.load(f)
+        for item in chunk:
+            iid = item.get("id")
+            if iid not in seen:
+                items.append(item)
+                seen.add(iid)
+    return items
+
+
 def process_repo(raw_dir, output_dir, repo_full, team_info):
     owner, repo_name = repo_full.split("/")
     team_name = team_info["team"]
     eng_count = team_info["engineers"]
     print(f"  Processing {repo_full} → {team_name}")
 
-    issues_path = raw_dir / f"{owner}_{repo_name}_issues.json"
-    pulls_path = raw_dir / f"{owner}_{repo_name}_pulls.json"
-    milestones_path = raw_dir / f"{owner}_{repo_name}_milestones.json"
-
-    if not issues_path.exists():
-        print(f"    No issues file found, skipping")
+    repo_dir = raw_dir / f"{owner}_{repo_name}"
+    if not repo_dir.exists() or not repo_dir.is_dir():
+        print(f"    No data directory found, skipping")
         return None
 
-    with open(issues_path) as f:
-        raw_issues = json.load(f)
-    with open(pulls_path) as f:
-        raw_pulls = json.load(f)
+    raw_issues = load_chunked(repo_dir, "issues")
+    raw_pulls = load_chunked(repo_dir, "pulls")
+
+    if not raw_issues:
+        print(f"    No issue files found, skipping")
+        return None
+
     raw_milestones = []
-    if milestones_path.exists():
-        with open(milestones_path) as f:
+    ms_file = repo_dir / "milestones.json"
+    if ms_file.exists():
+        with open(ms_file) as f:
             raw_milestones = json.load(f)
+
+    print(f"    Loaded {len(raw_issues)} issues, {len(raw_pulls)} PRs, {len(raw_milestones)} milestones")
 
     all_contributors = []
     for issue in raw_issues:
@@ -102,25 +121,6 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
     eng_map = build_engineer_map(all_contributors, team_name, eng_count)
     reverse_map = {v: k for k, v in eng_map.items()}
 
-    raw_dates = []
-    for issue in raw_issues:
-        if issue.get("created_at"):
-            raw_dates.append(issue["created_at"])
-    for pr in raw_pulls:
-        if pr.get("created_at"):
-            raw_dates.append(pr["created_at"])
-    if not raw_dates:
-        print(f"    No dates found, skipping")
-        return None
-
-    raw_dates.sort()
-    earliest = datetime.fromisoformat(raw_dates[0].replace("Z", "+00:00"))
-    latest = datetime.fromisoformat(raw_dates[-1].replace("Z", "+00:00"))
-
-    ref_start = earliest.replace(tzinfo=None)
-    ref_end = latest.replace(tzinfo=None)
-    ref_span = (ref_end - ref_start).total_seconds()
-
     year = 2026
     week_start = 2
     sprints = iso_week_range(year, week_start, 12)
@@ -133,11 +133,14 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
             orig = datetime.fromisoformat(orig_iso.replace("Z", "+00:00")).replace(tzinfo=None)
         except ValueError:
             return None
-        if ref_span <= 0:
-            return sprint_start.isoformat()
-        ratio = (orig - ref_start).total_seconds() / ref_span
-        shifted = sprint_start + timedelta(seconds=ratio * 15552000)
-        return shifted.isoformat()
+        return orig
+
+    def assign_sprint(items, sprint_key):
+        sorted_items = sorted(items, key=lambda x: x.get(sprint_key, "") or "")
+        items_per = max(1, math.ceil(len(sorted_items) / len(sprints)))
+        for idx, item in enumerate(sorted_items):
+            sprint = sprints[min(idx // items_per, len(sprints) - 1)]
+            yield item, sprint
 
     def map_to_engineer(login):
         if login in eng_map:
@@ -145,23 +148,15 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
         return f"{team_name}-external-{hashlib.md5(login.encode()).hexdigest()[:6]}"
 
     transformed_issues = []
-    for issue in raw_issues:
+    for issue, sprint in assign_sprint(raw_issues, "created_at"):
         gh_id = issue["id"]
         issue_type, points = assign_properties(gh_id)
-        created = shift_date(issue.get("created_at"))
-        closed = shift_date(issue.get("closed_at"))
+        created_dt = shift_date(issue.get("created_at"))
+        closed_dt = shift_date(issue.get("closed_at"))
         assignee = issue.get("assignee")
         assignee_login = map_to_engineer(assignee["login"]) if assignee and assignee.get("login") else None
 
-        sprint_label = None
-        for sprint in sprints:
-            s_start = datetime.fromisoformat(sprint["start_date"])
-            s_end = datetime.fromisoformat(sprint["end_date"])
-            if created:
-                c_dt = datetime.fromisoformat(created)
-                if s_start <= c_dt <= s_end:
-                    sprint_label = f"sprint:{team_name}-26.{sprint['start_week']:02d}.{sprint['end_week']:02d}"
-                    break
+        sprint_label = f"sprint:{team_name}-{sprint['name']}"
 
         labels = issue.get("labels", [])
         label_names = [l.get("name", "") for l in labels] if labels else []
@@ -172,19 +167,19 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
             "number": issue["number"],
             "title": issue.get("title", ""),
             "state": issue.get("state", "open"),
-            "created_at": created,
-            "closed_at": closed,
-            "updated_at": shift_date(issue.get("updated_at")),
+            "created_at": created_dt.isoformat() if created_dt else None,
+            "closed_at": closed_dt.isoformat() if closed_dt else None,
+            "updated_at": created_dt.isoformat() if created_dt else None,
             "assignee_login": assignee_login,
             "story_points": points,
             "is_bug": issue_type == "bug",
             "is_feature": issue_type == "feature",
             "is_techdebt": issue_type == "tech-debt",
             "is_task": issue_type == "task",
-            "is_blocked": is_blocked,
-            "milestone_title": issue.get("milestone", {}).get("title") if issue.get("milestone") else None,
+            "milestone_title": None,
             "sprint_label": sprint_label,
-            "created_after_sprint_start": False,
+            "labels": label_names,
+            "is_blocked": is_blocked,
         })
 
     transformed_pulls = []
@@ -193,23 +188,16 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
         created = shift_date(pr.get("created_at"))
         merged = shift_date(pr.get("merged_at"))
         closed = shift_date(pr.get("closed_at"))
-        first_commit = pr.get("_first_commit_at")
-        if first_commit:
-            first_commit = shift_date(first_commit)
 
+        first_commit_dt = shift_date(pr.get("_first_commit_at"))
         cycle_time = None
-        if first_commit and merged:
-            try:
-                fc = datetime.fromisoformat(first_commit.replace("Z", "+00:00") if "Z" in first_commit else first_commit)
-                mg = datetime.fromisoformat(merged.replace("Z", "+00:00") if "Z" in merged else merged)
-                cycle_time = round((mg - fc).total_seconds() / 3600, 2)
-            except ValueError:
-                pass
+        if first_commit_dt and merged and merged.tzinfo is None and first_commit_dt.tzinfo is None:
+            cycle_time = round((merged - first_commit_dt).total_seconds() / 3600, 2)
 
         author = pr.get("user", {})
         author_login = map_to_engineer(author.get("login")) if author else None
 
-        raw_reviewers = pr.get("_reviewers", [])
+        raw_reviewers = pr.get("_reviewers", []) or []
         reviewers = [map_to_engineer(r) for r in raw_reviewers]
 
         transformed_pulls.append({
@@ -221,9 +209,9 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
             "created_at": created,
             "merged_at": merged,
             "closed_at": closed,
-            "first_commit_at": first_commit,
+            "first_commit_at": first_commit_dt.isoformat() if first_commit_dt else None,
             "cycle_time_hours": cycle_time,
-            "review_count": pr.get("_review_count", 0),
+            "review_count": pr.get("_review_count", 0) or 0,
             "reviewers": reviewers,
         })
 
@@ -234,7 +222,7 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
         if issue["sprint_label"] and rng.random() < 0.15:
             sprint_name = issue["sprint_label"].replace("sprint:", "")
             for sprint in sprints:
-                if sprint_name.endswith(f"26.{sprint['start_week']:02d}.{sprint['end_week']:02d}"):
+                if sprint_name.endswith(sprint['name']):
                     s_start = datetime.fromisoformat(sprint["start_date"])
                     delay = timedelta(hours=rng.randint(1, 48))
                     new_created = (s_start + delay).isoformat()
@@ -298,7 +286,7 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
     sprints_out = []
     for sprint in sprints:
         sprints_out.append({
-            "name": f"{team_name}-26.{sprint['start_week']:02d}.{sprint['end_week']:02d}",
+            "name": f"{team_name}-{sprint['name']}",
             "start_date": sprint["start_date"],
             "end_date": sprint["end_date"],
             "team": team_name,

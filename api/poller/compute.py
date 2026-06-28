@@ -266,7 +266,7 @@ def detect_alerts():
 
     stale_prs = PullRequest.query.filter(
         PullRequest.state == "open",
-        PullRequest.updated_at < (now - timedelta(days=stale_days)),
+        PullRequest.created_at < (now - timedelta(days=stale_days)),
     ).all()
     for pr in stale_prs:
         db.session.add(Alert(
