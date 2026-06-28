@@ -1,11 +1,31 @@
-"""Poller trigger endpoints — wraps Phase 1 and Phase 2."""
+"""Poller trigger endpoints — wraps Phase 1 and Phase 2.
 
+Heavy operations run in a background thread to avoid blocking gunicorn workers.
+The frontend polls /api/poller/status for progress.
+"""
+
+import threading
+import traceback
 from flask import Blueprint, jsonify
 from api.models import db
 
 bp = Blueprint("poller", __name__, url_prefix="/api/poller")
 
-POLLER_STATUS = {"status": "idle", "last_fetch": None, "last_compute": None}
+POLLER_STATUS = {
+    "status": "idle",
+    "last_fetch": None,
+    "last_compute": None,
+    "last_regenerate": None,
+    "progress": None,
+    "error": None,
+}
+
+_lock = threading.Lock()
+
+
+def _set_status(**kwargs):
+    with _lock:
+        POLLER_STATUS.update(kwargs)
 
 
 def _run_phase1():
@@ -20,13 +40,21 @@ def _run_phase2():
         compute_dora_metrics, detect_alerts, compute_forecasts,
         generate_all_summaries,
     )
+    _set_status(progress="Resolving sprints...")
     sprint_map = resolve_sprints()
+    _set_status(progress="Mapping issues to sprints...")
     mapped = map_issues_to_sprints()
+    _set_status(progress="Computing sprint metrics...")
     metrics = compute_sprint_metrics()
+    _set_status(progress="Computing engineer metrics...")
     eng_metrics = compute_engineer_metrics()
+    _set_status(progress="Computing DORA metrics...")
     dora = compute_dora_metrics()
+    _set_status(progress="Detecting alerts...")
     alerts = detect_alerts()
+    _set_status(progress="Computing forecasts...")
     compute_forecasts()
+    _set_status(progress="Generating AI summaries...")
     ai_results = generate_all_summaries()
     return {
         "sprints": len(sprint_map),
@@ -39,67 +67,76 @@ def _run_phase2():
     }
 
 
+def _run_regenerate():
+    from api.poller.compute import generate_all_summaries
+    return generate_all_summaries()
+
+
+def _background_job(job_fn, success_key):
+    app = None
+    try:
+        from flask import current_app
+        app = current_app._get_current_object()
+    except Exception:
+        pass
+
+    def _run():
+        with app.app_context():
+            try:
+                results = job_fn()
+                _set_status(status="idle", progress=None, error=None, **{success_key: str(results)})
+            except Exception as e:
+                tb = traceback.format_exc()
+                print(f"[poller] Background job error: {e}\n{tb}", flush=True)
+                _set_status(status="error", progress=None, error=str(e))
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+
 @bp.route("/status")
 def status():
-    return jsonify(POLLER_STATUS)
+    with _lock:
+        return jsonify(dict(POLLER_STATUS))
 
 
 @bp.route("/fetch", methods=["POST"])
 def fetch():
-    POLLER_STATUS["status"] = "running"
-    try:
-        results = _run_phase1()
-        total_issues = sum(r["issues"] for r in results.values())
-        total_prs = sum(r["prs"] for r in results.values())
-        POLLER_STATUS.update({
-            "status": "idle",
-            "last_fetch": str(db.session.execute(db.text("SELECT NOW()")).scalar()),
-        })
-        return jsonify({
-            "status": "completed",
-            "repos": len(results),
-            "issues": total_issues,
-            "prs": total_prs,
-            "details": results,
-        })
-    except Exception as e:
-        POLLER_STATUS["status"] = "error"
-        return jsonify({"status": "error", "message": str(e)}), 500
+    with _lock:
+        if POLLER_STATUS["status"] == "running":
+            return jsonify({"status": "already_running"}), 409
+        POLLER_STATUS["status"] = "running"
+        POLLER_STATUS["progress"] = "Starting fetch..."
+        POLLER_STATUS["error"] = None
+    _background_job(_run_phase1, "last_fetch")
+    return jsonify({"status": "started", "message": "Fetch running in background. Poll /api/poller/status for progress."})
 
 
 @bp.route("/compute", methods=["POST"])
 def compute():
-    POLLER_STATUS["status"] = "running"
-    try:
-        results = _run_phase2()
-        POLLER_STATUS.update({
-            "status": "idle",
-            "last_compute": str(db.session.execute(db.text("SELECT NOW()")).scalar()),
-        })
-        return jsonify({"status": "completed", **results})
-    except Exception as e:
-        POLLER_STATUS["status"] = "error"
-        return jsonify({"status": "error", "message": str(e)}), 500
+    with _lock:
+        if POLLER_STATUS["status"] == "running":
+            return jsonify({"status": "already_running"}), 409
+        POLLER_STATUS["status"] = "running"
+        POLLER_STATUS["progress"] = "Starting compute..."
+        POLLER_STATUS["error"] = None
+    _background_job(_run_phase2, "last_compute")
+    return jsonify({"status": "started", "message": "Compute running in background. Poll /api/poller/status for progress."})
 
 
 @bp.route("/full", methods=["POST"])
 def full():
-    POLLER_STATUS["status"] = "running"
-    try:
-        f1 = _run_phase1()
-        f2 = _run_phase2()
-        POLLER_STATUS.update({
-            "status": "idle",
-            "last_fetch": str(db.session.execute(db.text("SELECT NOW()")).scalar()),
-            "last_compute": str(db.session.execute(db.text("SELECT NOW()")).scalar()),
-        })
-        total_issues = sum(r["issues"] for r in f1.values())
-        total_prs = sum(r["prs"] for r in f1.values())
-        return jsonify({
-            "status": "completed",
-            "phase1": {"repos": len(f1), "issues": total_issues, "prs": total_prs},
-            "phase2": f2,
-        })
-    except Exception as e:
-        POLLER_STATUS["status"] = "error"
-        return jsonify({"status": "error", "message": str(e)}), 500
+    with _lock:
+        if POLLER_STATUS["status"] == "running":
+            return jsonify({"status": "already_running"}), 409
+        POLLER_STATUS["status"] = "running"
+        POLLER_STATUS["progress"] = "Starting full poll..."
+        POLLER_STATUS["error"] = None
+
+    def _full():
+        _run_phase1()
+        _set_status(progress="Phase 1 done, starting Phase 2...")
+        _run_phase2()
+
+    _background_job(_full, "last_compute")
+    return jsonify({"status": "started", "message": "Full poll running in background. Poll /api/poller/status for progress."})

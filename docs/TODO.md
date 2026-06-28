@@ -8,13 +8,13 @@
 
 ## Known Issues
 
-1. **AI summary regenerate hangs** — `/api/admin/summaries/regenerate` calls `generate_all_summaries()` which loops 120 sprints making LLM calls. Works per-sprint (2s each) but hangs when called in bulk from the admin endpoint. Background thread approach also failed. Workaround: run `generate_all_summaries()` directly via `docker compose exec api python3 -c "..."`. Fix needed: batch with progress reporting or run as Celery task.
+1. **Admin regenerate status display** — `/api/admin/summaries/regenerate` now runs in background thread and returns immediately. Summaries generate successfully but `last_regenerate` status field may not always update. Workaround: check `/api/admin/summaries` count to verify. Minor display issue.
 
-2. **Poller fetch hangs from admin UI** — `/api/poller/fetch` makes live GitHub API calls for all 11 repos. Takes >2 min and exhausts gunicorn workers. Data already seeded in DB via `tools/seed_database.py`. Fix needed: run fetch as background job with status polling, or skip repos already seeded.
+2. **Poller fetch from admin UI** — `/api/poller/fetch` now runs in background thread. Returns immediately with "started" status. Frontend polls `/api/poller/status` for progress. Fetch makes live GitHub API calls for all 11 repos — may take >2 min. Data already seeded in DB.
 
-3. **Poller compute hangs from admin UI** — `/api/poller/compute` recomputes all 120 sprints + DORA + alerts + AI summaries. The AI summary portion triggers issue #1. Fix needed: separate compute (metrics only) from generate (AI summaries), or fix issue #1 first.
+3. **Poller compute from admin UI** — `/api/poller/compute` now runs in background thread with progress updates. Returns immediately. Compute includes metrics + DORA + alerts + forecasts + AI summaries.
 
-4. **PagerDuty token not set** — Cosmetic warning in docker-compose. Added `PAGERDUTY_API_TOKEN=dev-token-placeholder` to `.env`. No real PagerDuty integration; incidents are synthetic.
+4. **PagerDuty token** — Added `PAGERDUTY_API_TOKEN=dev-token-placeholder` to `.env`. No real PagerDuty integration; incidents are synthetic.
 
 ---
 

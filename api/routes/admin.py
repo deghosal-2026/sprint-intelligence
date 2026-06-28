@@ -3,8 +3,7 @@
 from flask import Blueprint, jsonify
 from api.models import db, AISummary
 from api.poller import github_client as gh, ollama_client as llm
-from api.poller.compute import generate_all_summaries
-from api.routes.poller import POLLER_STATUS
+from api.routes.poller import POLLER_STATUS, _set_status, _background_job
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -54,10 +53,16 @@ def list_summaries():
 
 @bp.route("/summaries/regenerate", methods=["POST"])
 def regenerate_summaries():
-    try:
-        results = generate_all_summaries()
-        return jsonify({"status": "ok", **results})
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"status": "error", "message": str(e)}), 500
+    with __import__("threading").Lock():
+        if POLLER_STATUS["status"] == "running":
+            return jsonify({"status": "already_running"}), 409
+        POLLER_STATUS["status"] = "running"
+        POLLER_STATUS["progress"] = "Regenerating AI summaries..."
+        POLLER_STATUS["error"] = None
+
+    def _regen():
+        from api.poller.compute import generate_all_summaries
+        return generate_all_summaries()
+
+    _background_job(_regen, "last_regenerate")
+    return jsonify({"status": "started", "message": "Regenerating all summaries in background. Poll /api/poller/status for progress."})

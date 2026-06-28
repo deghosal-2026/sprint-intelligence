@@ -4,54 +4,61 @@ const API = "/api";
 
 export default function Admin() {
   const [system, setSystem] = useState(null);
-  const [pollerStatus, setPollerStatus] = useState("idle");
+  const [pollerStatus, setPollerStatus] = useState(null);
   const [log, setLog] = useState([]);
   const [summaries, setSummaries] = useState([]);
-  const [regenerating, setRegenerating] = useState(false);
 
   const fetchSystem = () => {
     fetch(`${API}/admin/system`).then((r) => r.json()).then(setSystem);
     fetch(`${API}/admin/summaries`).then((r) => r.json()).then(setSummaries);
+    fetch(`${API}/poller/status`).then((r) => r.json()).then(setPollerStatus);
   };
 
   useEffect(() => {
     fetchSystem();
-    const interval = setInterval(fetchSystem, 30000);
+    const interval = setInterval(fetchSystem, 5000);
     return () => clearInterval(interval);
   }, []);
-
-  const runPoll = async (mode) => {
-    setPollerStatus("running");
-    addLog(`Starting ${mode}...`);
-    try {
-      const r = await fetch(`${API}/poller/${mode}`, { method: "POST" });
-      const data = await r.json();
-      addLog(`${mode} completed: ${JSON.stringify(data)}`);
-    } catch (e) {
-      addLog(`${mode} failed: ${e.message}`);
-    }
-    setPollerStatus("idle");
-    fetchSystem();
-  };
-
-  const regenerate = async () => {
-    setRegenerating(true);
-    addLog("Regenerating all AI summaries (SDM + SrSDM + Director)... this takes ~5 min");
-    try {
-      const r = await fetch(`${API}/admin/summaries/regenerate`, { method: "POST" });
-      const data = await r.json();
-      addLog(`Regenerated: ${JSON.stringify(data)}`);
-    } catch (e) {
-      addLog(`Regenerate failed: ${e.message}`);
-    }
-    setRegenerating(false);
-    fetchSystem();
-  };
 
   const addLog = (msg) => {
     const ts = new Date().toLocaleTimeString();
     setLog((prev) => [`${ts} - ${msg}`, ...prev].slice(0, 50));
   };
+
+  const runPoll = async (mode) => {
+    addLog(`Starting ${mode}...`);
+    try {
+      const r = await fetch(`${API}/poller/${mode}`, { method: "POST" });
+      const data = await r.json();
+      if (data.status === "started") {
+        addLog(`${mode} started in background. Polling status...`);
+      } else {
+        addLog(`${mode}: ${JSON.stringify(data)}`);
+      }
+    } catch (e) {
+      addLog(`${mode} failed: ${e.message}`);
+    }
+    fetchSystem();
+  };
+
+  const regenerate = async () => {
+    addLog("Regenerating all AI summaries...");
+    try {
+      const r = await fetch(`${API}/admin/summaries/regenerate`, { method: "POST" });
+      const data = await r.json();
+      if (data.status === "started") {
+        addLog("Regenerate started in background. Polling status...");
+      } else {
+        addLog(`Regenerate: ${JSON.stringify(data)}`);
+      }
+    } catch (e) {
+      addLog(`Regenerate failed: ${e.message}`);
+    }
+    fetchSystem();
+  };
+
+  const isRunning = pollerStatus?.status === "running";
+  const progress = pollerStatus?.progress;
 
   const statusDot = (ok) =>
     ok === "connected"
@@ -67,23 +74,32 @@ export default function Admin() {
           <h2 className="font-semibold mb-3">Poller Controls</h2>
           <div className="flex flex-wrap gap-2 mb-3">
             <button onClick={() => runPoll("fetch")}
-              disabled={pollerStatus === "running"}
+              disabled={isRunning}
               className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-4 py-1.5 rounded text-sm">Fetch Data</button>
             <button onClick={() => runPoll("compute")}
-              disabled={pollerStatus === "running"}
+              disabled={isRunning}
               className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-1.5 rounded text-sm">Compute Metrics</button>
             <button onClick={() => runPoll("full")}
-              disabled={pollerStatus === "running"}
+              disabled={isRunning}
               className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white px-4 py-1.5 rounded text-sm">Run Full Poll</button>
           </div>
           <p className="text-xs text-gray-400">
-            Status: {statusDot(pollerStatus === "idle" ? "connected" : "disconnected")} {pollerStatus}
+            Status: {statusDot(isRunning ? "disconnected" : "connected")} {pollerStatus?.status || "idle"}
           </p>
-          {system?.poller?.last_fetch && (
-            <p className="text-xs text-gray-400 mt-1">Last fetch: {system.poller.last_fetch}</p>
+          {progress && (
+            <p className="text-xs text-blue-500 mt-1 animate-pulse">{progress}</p>
           )}
-          {system?.poller?.last_compute && (
-            <p className="text-xs text-gray-400">Last compute: {system.poller.last_compute}</p>
+          {pollerStatus?.error && (
+            <p className="text-xs text-red-500 mt-1">Error: {pollerStatus.error}</p>
+          )}
+          {pollerStatus?.last_fetch && (
+            <p className="text-xs text-gray-400 mt-1">Last fetch: {pollerStatus.last_fetch}</p>
+          )}
+          {pollerStatus?.last_compute && (
+            <p className="text-xs text-gray-400">Last compute: {pollerStatus.last_compute}</p>
+          )}
+          {pollerStatus?.last_regenerate && (
+            <p className="text-xs text-gray-400">Last regenerate: {pollerStatus.last_regenerate}</p>
           )}
 
           {log.length > 0 && (
@@ -111,9 +127,9 @@ export default function Admin() {
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold">AI Summaries</h2>
-          <button onClick={regenerate} disabled={regenerating}
+          <button onClick={regenerate} disabled={isRunning}
             className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white px-4 py-1.5 rounded text-sm">
-            {regenerating ? "Regenerating..." : "Regenerate All"}
+            {isRunning ? "Running..." : "Regenerate All"}
           </button>
         </div>
         {summaries.length === 0 ? (
