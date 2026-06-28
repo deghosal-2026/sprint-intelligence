@@ -1,9 +1,6 @@
-"""Convenience runner: python run.py --full"""
+import os
+from api.app import create_app
 
-import sys
-sys.path.insert(0, "api")
-
-from api.poller.__main__ import main
-
-if __name__ == "__main__":
-    main()
+app = create_app()
+port = int(os.getenv("PORT", 5001))
+app.run(host="0.0.0.0", port=port, debug=False)

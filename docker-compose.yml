@@ -18,12 +18,14 @@ services:
   api:
     build: ./api
     ports:
-      - "5000:5000"
+      - "5001:5000"
     environment:
       DATABASE_URL: postgresql://sprintsense:${DB_PASSWORD:-devpassword123}@db:5432/sprintsense
       GITHUB_TOKEN: ${GITHUB_TOKEN}
       PAGERDUTY_API_TOKEN: ${PAGERDUTY_API_TOKEN}
-      OLLAMA_URL: http://host.docker.internal:11434
+      OMLX_URL: http://host.docker.internal:8000
+      OMLX_API_KEY: omlx-test
+      OMLX_MODEL: Llama-3.2-3B-Instruct-4bit
     depends_on:
       db:
         condition: service_healthy
@@ -33,7 +35,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      API_URL: http://localhost:5000
+      API_URL: http://api:5000
     depends_on:
       - api
 

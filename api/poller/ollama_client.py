@@ -1,4 +1,4 @@
-"""omlx client — OpenAI-compatible API for local LLM (Qwen3.5-9B-MLX-4bit)."""
+"""omlx client — OpenAI-compatible API for local LLM (Llama-3.2-3B-Instruct-4bit)."""
 
 import os
 import re
@@ -6,7 +6,7 @@ import requests
 
 OMLX_URL = os.getenv("OMLX_URL", "http://host.docker.internal:8000")
 OMLX_API_KEY = os.getenv("OMLX_API_KEY", "omlx-test")
-OMLX_MODEL = os.getenv("OMLX_MODEL", "Qwen3.5-9B-MLX-4bit")
+OMLX_MODEL = os.getenv("OMLX_MODEL", "Llama-3.2-3B-Instruct-4bit")
 TIMEOUT = int(os.getenv("OMLX_TIMEOUT", "120"))
 
 

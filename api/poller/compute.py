@@ -348,7 +348,169 @@ def _fetch_metric_dict(sprint_id):
     }
 
 
+def _generate_sdm_summary(sprint, results):
+    existing = AISummary.query.filter_by(
+        sprint_id=sprint.id, persona_level="sdm"
+    ).first()
+    if existing and existing.reviewed:
+        results["skipped"] += 1
+        return
+    metrics = _fetch_metric_dict(sprint.id)
+    if not metrics.get("velocity_ratio") and not metrics.get("cycle_time_mean_hours"):
+        results["skipped"] += 1
+        return
+    prompt = prompts.sdm_summary_prompt(metrics)
+    text = llm.chat(prompt, system=prompts.SDM_SUMMARY_SYSTEM)
+    if text is None:
+        results["errors"] += 1
+        return
+    if existing:
+        existing.summary_text = text
+    else:
+        db.session.add(AISummary(
+            sprint_id=sprint.id, persona_level="sdm",
+            summary_text=text, model_used=llm.OMLX_MODEL,
+        ))
+    results["generated"] += 1
+
+
+def _generate_srsdm_summary(results):
+    sprint_id = None
+    team_metrics = []
+    repos = Repo.query.filter(Repo.team.isnot(None)).all()
+    for repo in repos:
+        latest = Sprint.query.filter_by(repo_id=repo.id).order_by(
+            Sprint.start_date.desc()
+        ).first()
+        if not latest:
+            continue
+        if sprint_id is None:
+            sprint_id = latest.id
+        metrics = _fetch_metric_dict(latest.id)
+        if metrics:
+            metrics["team"] = repo.team
+            team_metrics.append(metrics)
+
+    if not team_metrics:
+        return
+    existing = AISummary.query.filter_by(
+        sprint_id=sprint_id, persona_level="srsdm"
+    ).first()
+    if existing and existing.reviewed:
+        results["skipped"] += 1
+        return
+    prompt = prompts.srsdm_summary_prompt(team_metrics)
+    text = llm.chat(prompt, system=prompts.SRSDM_SUMMARY_SYSTEM)
+    if text is None:
+        results["errors"] += 1
+        return
+    if existing:
+        existing.summary_text = text
+    else:
+        db.session.add(AISummary(
+            sprint_id=sprint_id, persona_level="srsdm",
+            summary_text=text, model_used=llm.OMLX_MODEL,
+        ))
+    results["generated"] += 1
+
+
+def _generate_director_summary(results):
+    repos = Repo.query.filter(Repo.team.isnot(None)).all()
+    quarterly_data = []
+    sprint_id = None
+    for repo in repos:
+        sprints = Sprint.query.filter_by(repo_id=repo.id).order_by(
+            Sprint.start_date.desc()
+        ).limit(12).all()
+        if not sprints:
+            continue
+        if sprint_id is None:
+            sprint_id = sprints[0].id
+        sprint_ids = [s.id for s in sprints]
+        metrics = SprintMetric.query.filter(
+            SprintMetric.sprint_id.in_(sprint_ids)
+        ).all()
+        n = len(metrics)
+        if n == 0:
+            continue
+        avg = lambda field: float(
+            sum(getattr(m, field) for m in metrics if getattr(m, field) is not None) / n
+        )
+        last = _fetch_metric_dict(sprints[0].id)
+        prev4 = SprintMetric.query.filter(
+            SprintMetric.sprint_id.in_([s.id for s in sprints[4:8]])
+        ).all()
+        prev = lambda field: float(
+            sum(getattr(m, field) for m in prev4 if getattr(m, field) is not None) / max(len(prev4), 1)
+        ) if prev4 else None
+
+        qoq = {}
+        for key in ["velocity_ratio", "cycle_time_mean_hours"]:
+            curr = last.get(key)
+            p = prev(key)
+            if curr is not None and p is not None and p != 0:
+                qoq[key] = round((curr - p) / abs(p) * 100, 1)
+            else:
+                qoq[key] = None
+
+        quarterly_data.append({
+            "team": repo.team,
+            "averages": {
+                "velocity_ratio": avg("velocity_ratio"),
+                "cycle_time_mean_hours": avg("cycle_time_mean_hours"),
+            },
+            "qoq_delta": qoq,
+        })
+
+    if not quarterly_data:
+        return
+    existing = AISummary.query.filter_by(
+        sprint_id=sprint_id, persona_level="director"
+    ).first()
+    if existing and existing.reviewed:
+        results["skipped"] += 1
+        return
+    prompt = prompts.director_summary_prompt(quarterly_data)
+    text = llm.chat(prompt, system=prompts.DIRECTOR_SUMMARY_SYSTEM)
+    if text is None:
+        results["errors"] += 1
+        return
+    if existing:
+        existing.summary_text = text
+    else:
+        db.session.add(AISummary(
+            sprint_id=sprint_id, persona_level="director",
+            summary_text=text, model_used=llm.OMLX_MODEL,
+        ))
+    results["generated"] += 1
+
+
+def generate_all_summaries():
+    results = {"sdm": {"generated": 0, "skipped": 0, "errors": 0},
+               "srsdm": {"generated": 0, "skipped": 0, "errors": 0},
+               "director": {"generated": 0, "skipped": 0, "errors": 0}}
+
+    if not llm.is_available():
+        return {"error": "LLM unavailable"}
+
+    sprints = Sprint.query.order_by(Sprint.start_date.desc()).all()
+    for sprint in sprints:
+        _generate_sdm_summary(sprint, results["sdm"])
+
+    _generate_srsdm_summary(results["srsdm"])
+    _generate_director_summary(results["director"])
+
+    db.session.commit()
+    return results
+
+
 def generate_ai_summaries(persona="sdm"):
+    if persona == "all":
+        return generate_all_summaries()
+    return _generate_single_persona_summaries(persona)
+
+
+def _generate_single_persona_summaries(persona):
     sprints = Sprint.query.order_by(Sprint.start_date.desc()).all()
     results = {"generated": 0, "skipped": 0, "errors": 0}
 
@@ -397,6 +559,7 @@ def compute_dora_metrics():
 
     for sprint in sprints:
         deploys = DeployEvent.query.filter(
+            DeployEvent.repo_id == sprint.repo_id,
             DeployEvent.deployed_at >= sprint.start_date.isoformat(),
             DeployEvent.deployed_at <= (sprint.end_date + timedelta(days=1)).isoformat(),
         ).all()

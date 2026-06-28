@@ -100,11 +100,19 @@ export default function Dashboard() {
   const [engineers, setEngineers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [teams, setTeams] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [orgQuarterly, setOrgQuarterly] = useState(null);
+  const [teamQuarterly, setTeamQuarterly] = useState([]);
+  const [patterns, setPatterns] = useState(null);
 
   const handlePersonaChange = (e) => {
     const p = e.target.value;
     setPersona(p);
     sessionStorage.setItem("sprintsense_persona", p);
+    if (p === "srsdm" && teams.length > 0) {
+      setSelectedTeam(teams[0]);
+    }
   };
 
   useEffect(() => {
@@ -114,26 +122,62 @@ export default function Dashboard() {
         setSprints(list);
         if (list.length > 0) setSelectedSprint(list[0].id);
       });
+    fetch(`${API}/teams`)
+      .then((r) => r.json())
+      .then((list) => {
+        setTeams(list);
+        if (list.length > 0) setSelectedTeam(list[0]);
+      });
+    fetch(`${API}/quarterly/org`)
+      .then((r) => r.json())
+      .then(setOrgQuarterly)
+      .catch(() => {});
+    fetch(`${API}/quarterly`)
+      .then((r) => r.json())
+      .then(setTeamQuarterly)
+      .catch(() => {});
+    fetch(`${API}/patterns`)
+      .then((r) => r.json())
+      .then(setPatterns)
+      .catch(() => {});
   }, []);
 
+  const sprintIdForTeam = (team) => {
+    if (!team) return selectedSprint;
+    const t = teams.find((t) => t.team === team);
+    return t?.latest_sprint_id || selectedSprint;
+  };
+
   useEffect(() => {
-    if (!selectedSprint) return;
-    fetch(`${API}/metrics/${selectedSprint}`)
-      .then((r) => r.json())
-      .then(setMetrics);
-    fetch(`${API}/metrics/${selectedSprint}/trend`)
-      .then((r) => r.json())
-      .then(setTrends);
-    fetch(`${API}/metrics/${selectedSprint}/engineers`)
-      .then((r) => r.json())
-      .then(setEngineers);
-    fetch(`${API}/alerts?sprint_id=${selectedSprint}`)
-      .then((r) => r.json())
-      .then(setAlerts);
-    fetch(`${API}/metrics/${selectedSprint}/summary`)
-      .then((r) => r.json())
-      .then(setSummary);
-  }, [selectedSprint]);
+    let sid;
+    if (persona === "srsdm" && selectedTeam) {
+      sid = sprintIdForTeam(selectedTeam.team);
+    } else {
+      sid = selectedSprint;
+    }
+    if (!sid) return;
+    fetch(`${API}/metrics/${sid}`)
+      .then((r) => { if (r.ok) return r.json(); throw new Error("no data"); })
+      .then(setMetrics)
+      .catch(() => setMetrics(null));
+    fetch(`${API}/metrics/${sid}/trend`)
+      .then((r) => { if (r.ok) return r.json(); return []; })
+      .then(setTrends)
+      .catch(() => setTrends([]));
+    fetch(`${API}/metrics/${sid}/engineers`)
+      .then((r) => { if (r.ok) return r.json(); return []; })
+      .then(setEngineers)
+      .catch(() => setEngineers([]));
+    fetch(`${API}/alerts?sprint_id=${sid}`)
+      .then((r) => { if (r.ok) return r.json(); return []; })
+      .then(setAlerts)
+      .catch(() => setAlerts([]));
+    const personaArg = persona === "srsdm" || persona === "director" ? persona : "sdm";
+    fetch(`${API}/metrics/${sid}/summary?persona=${personaArg}`)
+      .then((r) => { if (r.ok) return r.json(); return {}; })
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, [selectedSprint, selectedTeam, persona]);
 
   const fmtHours = (h) => {
     if (!h && h !== 0) return "--";
@@ -158,6 +202,158 @@ export default function Dashboard() {
   };
 
   const currentEngineer = useMemo(() => engineers.length > 0 ? engineers[0] : null, [engineers]);
+
+  const SDMDashboard = ({ sprintId, showEngineerTable }) => {
+    const [m, setM] = useState(null);
+    const [tr, setTr] = useState([]);
+    const [eng, setEng] = useState([]);
+    const [al, setAl] = useState([]);
+    const [s, setS] = useState(null);
+
+    useEffect(() => {
+      if (!sprintId) return;
+      fetch(`${API}/metrics/${sprintId}`).then(r => r.ok ? r.json() : null).then(setM);
+      fetch(`${API}/metrics/${sprintId}/trend`).then(r => r.ok ? r.json() : []).then(setTr);
+      fetch(`${API}/metrics/${sprintId}/engineers`).then(r => r.ok ? r.json() : []).then(setEng);
+      fetch(`${API}/alerts?sprint_id=${sprintId}`).then(r => r.ok ? r.json() : []).then(setAl);
+      const pa = persona === "srsdm" || persona === "director" ? persona : "sdm";
+      fetch(`${API}/metrics/${sprintId}/summary?persona=${pa}`).then(r => r.ok ? r.json() : {}).then(setS);
+    }, [sprintId]);
+
+    return (
+      <>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <MetricCard title="Velocity"
+            value={m ? `${m.completed_points ?? 0} / ${m.planned_points ?? 0}` : "--"}
+            subtitle={`Ratio: ${m?.velocity_ratio != null ? (m.velocity_ratio * 100).toFixed(0) + "%" : "--"}`}
+            color={m?.velocity_ratio >= 0.8 ? "text-green-600" : "text-yellow-600"} />
+          <MetricCard title="PR Cycle Time"
+            value={fmtHours(m?.cycle_time_mean_hours)}
+            subtitle={`P90: ${fmtHours(m?.cycle_time_p90_hours)}`} />
+          <MetricCard title="Bug Rate"
+            value={m?.bugs_introduced != null ? `${m.bugs_introduced} / ${m.bugs_closed}` : "--"}
+            subtitle={`Rate: ${m?.bug_regression_rate != null ? (m.bug_regression_rate * 100).toFixed(1) + "%" : "--"}`} />
+          <MetricCard title="Capacity"
+            value={m?.capacity_ratio != null ? `${(m.capacity_ratio * 100).toFixed(0)}%` : "--"}
+            subtitle={`${m?.actual_capacity ?? 0} / ${m?.planned_capacity ?? 0} pts`} />
+        </div>
+
+        <SummaryCard summary={s} onToggleReview={() => {}} />
+
+        {m && (
+          <div className="bg-white rounded-lg shadow p-4 mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">DORA Pulse</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <DORAGauge label="Deploy Freq" value={m.deploy_frequency?.toFixed(1)} unit="/wk"
+                score={doraScore(m.deploy_frequency, "deploy_freq")}
+                color={doraColor(doraScore(m.deploy_frequency, "deploy_freq"))} />
+              <DORAGauge label="Lead Time" value={m.lead_time_hours?.toFixed(0)} unit="hrs"
+                score={doraScore(m.lead_time_hours, "lead_time")}
+                color={doraColor(doraScore(m.lead_time_hours, "lead_time"))} />
+              <DORAGauge label="MTTR" value={m.mttr_hours?.toFixed(1)} unit="hrs"
+                score={doraScore(m.mttr_hours, "mttr")}
+                color={doraColor(doraScore(m.mttr_hours, "mttr"))} />
+              <DORAGauge label="Change Fail" value={m.change_failure_rate != null ? `${(m.change_failure_rate * 100).toFixed(0)}%` : "--"}
+                score={doraScore(m.change_failure_rate, "cfr")}
+                color={doraColor(doraScore(m.change_failure_rate, "cfr"))} />
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Velocity Trend</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={tr}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="sprint" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="planned_points" fill="#94a3b8" name="Planned" />
+                <Bar dataKey="completed_points" fill="#3b82f6" name="Completed" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">PR Cycle Time Trend</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={tr}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="sprint" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line dataKey="cycle_time_mean_hours" stroke="#3b82f6" name="Mean" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {al.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Risk Alerts</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {al.map((a) => (
+                <div key={a.id} className="flex items-start gap-2 text-sm">
+                  <span className={
+                    a.severity === "critical" ? "text-red-500" :
+                    a.severity === "warning" ? "text-yellow-500" : "text-blue-500"
+                  }>
+                    {a.severity === "critical" ? "\u{1F534}" : a.severity === "warning" ? "\u26A0\uFE0F" : "\u2139\uFE0F"}
+                  </span>
+                  <div>
+                    <p className="font-medium">{a.title}</p>
+                    {a.description && <p className="text-xs text-gray-400">{a.description}</p>}
+                    {a.engineer_login && (
+                      <p className="text-xs text-orange-500 mt-0.5">Engineer: {a.engineer_login}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showEngineerTable !== false && (
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Engineers</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-gray-500">
+                    <th className="pb-2 pr-4">Engineer</th>
+                    <th className="pb-2 pr-4">Velocity</th>
+                    <th className="pb-2 pr-4">Stories</th>
+                    <th className="pb-2 pr-4">PRs Merged</th>
+                    <th className="pb-2 pr-4">Cycle Time</th>
+                    <th className="pb-2 pr-4">WIP</th>
+                    <th className="pb-2 pr-4">Blocked</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eng.map((e) => (
+                    <tr key={e.engineer} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-medium">{e.engineer}</td>
+                      <td className="py-2 pr-4">{e.completed_points}</td>
+                      <td className="py-2 pr-4">{e.story_count}</td>
+                      <td className="py-2 pr-4">{e.prs_merged}</td>
+                      <td className="py-2 pr-4">{fmtHours(e.cycle_time_mean_hours)}</td>
+                      <td className="py-2 pr-4">{e.max_concurrent_issues}</td>
+                      <td className="py-2 pr-4">{e.blocked_count}</td>
+                    </tr>
+                  ))}
+                  {eng.length === 0 && (
+                    <tr><td colSpan={7} className="py-4 text-center text-gray-400">No data. Run poller first.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
   const renderJuniorView = () => (
     <>
@@ -283,161 +479,164 @@ export default function Dashboard() {
     </>
   );
 
+  const renderSrSDMView = () => (
+    <>
+      <div className="mb-4 border-b border-gray-200">
+        <div className="flex gap-2 overflow-x-auto">
+          {teams.map((t) => (
+            <button key={t.team}
+              onClick={() => setSelectedTeam(t)}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                selectedTeam?.team === t.team
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t.team}
+            </button>
+          ))}
+        </div>
+      </div>
+      {selectedTeam && (
+        <div className="mb-2">
+          <span className="text-xs text-gray-400">{selectedTeam.owner}/{selectedTeam.repo}</span>
+        </div>
+      )}
+      {patterns?.slowdowns?.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+          <h3 className="text-sm font-semibold text-amber-800 mb-1">Cross-Team Patterns</h3>
+          {patterns.slowdowns.map((p, i) => (
+            <p key={i} className="text-xs text-amber-700">
+              {p.type === "velocity_decline"
+                ? `${p.team}: Velocity declined ${p.decline_pct}% (${p.early_avg} → ${p.recent_avg})`
+                : `${p.team}: Cycle time increased ${p.increase_pct}% (${p.early_avg}h → ${p.recent_avg}h)`}
+            </p>
+          ))}
+        </div>
+      )}
+      <SDMDashboard sprintId={sprintIdForTeam(selectedTeam?.team)} />
+    </>
+  );
+
+  const renderDirectorView = () => (
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Org-Level DORA Pulse</h3>
+          {orgQuarterly ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <DORAGauge label="Deploy Freq" value={orgQuarterly.averages.deploy_frequency?.toFixed(1)} unit="/wk"
+                score={doraScore(orgQuarterly.averages.deploy_frequency, "deploy_freq")}
+                color={doraColor(doraScore(orgQuarterly.averages.deploy_frequency, "deploy_freq"))} />
+              <DORAGauge label="Lead Time" value={orgQuarterly.averages.lead_time_hours?.toFixed(0)} unit="hrs"
+                score={doraScore(orgQuarterly.averages.lead_time_hours, "lead_time")}
+                color={doraColor(doraScore(orgQuarterly.averages.lead_time_hours, "lead_time"))} />
+              <DORAGauge label="MTTR" value={orgQuarterly.averages.mttr_hours?.toFixed(1)} unit="hrs"
+                score={doraScore(orgQuarterly.averages.mttr_hours, "mttr")}
+                color={doraColor(doraScore(orgQuarterly.averages.mttr_hours, "mttr"))} />
+              <DORAGauge label="Change Fail" value={orgQuarterly.averages.change_failure_rate != null ? `${(orgQuarterly.averages.change_failure_rate * 100).toFixed(0)}%` : "--"}
+                score={doraScore(orgQuarterly.averages.change_failure_rate, "cfr")}
+                color={doraColor(doraScore(orgQuarterly.averages.change_failure_rate, "cfr"))} />
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Loading org data...</p>
+          )}
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Org Velocity Trend</h3>
+          {orgQuarterly ? (
+            <div className="text-center">
+              <p className="text-3xl font-bold text-gray-900">
+                {orgQuarterly.averages.velocity_ratio != null
+                  ? `${(orgQuarterly.averages.velocity_ratio * 100).toFixed(0)}%`
+                  : "--"}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Org avg velocity (quarterly)</p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Loading...</p>
+          )}
+        </div>
+      </div>
+
+      <SummaryCard summary={summary} onToggleReview={() => {}} />
+
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Team Quarterly Comparison</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-gray-500">
+                <th className="pb-2 pr-4">Team</th>
+                <th className="pb-2 pr-4">Velocity</th>
+                <th className="pb-2 pr-4">Cycle Time</th>
+                <th className="pb-2 pr-4">PRs Merged</th>
+                <th className="pb-2 pr-4">Bugs</th>
+                <th className="pb-2 pr-4">Deploy Freq</th>
+                <th className="pb-2 pr-4">Change Fail</th>
+                <th className="pb-2 pr-4">QoQ Δ Vel</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamQuarterly.map((tq) => (
+                <tr key={tq.team} className="border-b last:border-0">
+                  <td className="py-2 pr-4 font-medium">{tq.team}</td>
+                  <td className="py-2 pr-4">{tq.averages.velocity_ratio != null ? `${(tq.averages.velocity_ratio * 100).toFixed(0)}%` : "--"}</td>
+                  <td className="py-2 pr-4">{fmtHours(tq.averages.cycle_time_mean_hours)}</td>
+                  <td className="py-2 pr-4">{tq.averages.total_prs_merged != null ? tq.averages.total_prs_merged.toFixed(1) : "--"}</td>
+                  <td className="py-2 pr-4">{tq.averages.bugs_introduced ?? 0}</td>
+                  <td className="py-2 pr-4">{tq.averages.deploy_frequency?.toFixed(1) ?? "--"}</td>
+                  <td className="py-2 pr-4">{tq.averages.change_failure_rate != null ? `${(tq.averages.change_failure_rate * 100).toFixed(0)}%` : "--"}</td>
+                  <td className={`py-2 pr-4 ${tq.qoq_delta?.velocity_ratio > 0 ? "text-green-600" : tq.qoq_delta?.velocity_ratio < 0 ? "text-red-600" : ""}`}>
+                    {tq.qoq_delta?.velocity_ratio != null ? `${tq.qoq_delta.velocity_ratio > 0 ? "+" : ""}${tq.qoq_delta.velocity_ratio}%` : "--"}
+                  </td>
+                </tr>
+              ))}
+              {teamQuarterly.length === 0 && (
+                <tr><td colSpan={8} className="py-4 text-center text-gray-400">No data. Run poller first.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderSDMView = () => (
+    <SDMDashboard sprintId={selectedSprint} />
+  );
+
   return (
     <div>
       <div className="mb-4 flex items-center gap-4">
         <select className="border rounded px-3 py-1.5 text-sm bg-white shadow-sm"
           value={persona} onChange={handlePersonaChange}>
           <option value="sdm">SDM</option>
+          <option value="srsdm">Senior SDM</option>
+          <option value="director">Director</option>
           <option value="junior">Junior Engineer</option>
           <option value="senior">Senior Engineer</option>
           <option value="staff">Staff Engineer</option>
         </select>
-        <select
-          className="border rounded px-3 py-1.5 text-sm bg-white shadow-sm"
-          value={selectedSprint ?? ""}
-          onChange={(e) => setSelectedSprint(Number(e.target.value))}
-        >
-          {sprints.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+        {persona !== "srsdm" && persona !== "director" && (
+          <select
+            className="border rounded px-3 py-1.5 text-sm bg-white shadow-sm"
+            value={selectedSprint ?? ""}
+            onChange={(e) => setSelectedSprint(Number(e.target.value))}
+          >
+            {sprints.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {persona === "junior" && renderJuniorView()}
       {persona === "senior" && renderSeniorView()}
       {persona === "staff" && renderStaffView()}
-      {persona !== "junior" && persona !== "senior" && persona !== "staff" && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <MetricCard title="Velocity"
-              value={metrics ? `${metrics.completed_points ?? 0} / ${metrics.planned_points ?? 0}` : "--"}
-              subtitle={`Ratio: ${metrics?.velocity_ratio != null ? (metrics.velocity_ratio * 100).toFixed(0) + "%" : "--"}`}
-              color={metrics?.velocity_ratio >= 0.8 ? "text-green-600" : "text-yellow-600"} />
-            <MetricCard title="PR Cycle Time"
-              value={fmtHours(metrics?.cycle_time_mean_hours)}
-              subtitle={`P90: ${fmtHours(metrics?.cycle_time_p90_hours)}`} />
-            <MetricCard title="Bug Rate"
-              value={metrics?.bugs_introduced != null ? `${metrics.bugs_introduced} / ${metrics.bugs_closed}` : "--"}
-              subtitle={`Rate: ${metrics?.bug_regression_rate != null ? (metrics.bug_regression_rate * 100).toFixed(1) + "%" : "--"}`} />
-            <MetricCard title="Capacity"
-              value={metrics?.capacity_ratio != null ? `${(metrics.capacity_ratio * 100).toFixed(0)}%` : "--"}
-              subtitle={`${metrics?.actual_capacity ?? 0} / ${metrics?.planned_capacity ?? 0} pts`} />
-          </div>
-
-          <SummaryCard summary={summary} onToggleReview={() => {}} />
-
-          {metrics && (
-            <div className="bg-white rounded-lg shadow p-4 mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">DORA Pulse</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <DORAGauge label="Deploy Freq" value={metrics.deploy_frequency?.toFixed(1)} unit="/wk"
-                  score={doraScore(metrics.deploy_frequency, "deploy_freq")}
-                  color={doraColor(doraScore(metrics.deploy_frequency, "deploy_freq"))} />
-                <DORAGauge label="Lead Time" value={metrics.lead_time_hours?.toFixed(0)} unit="hrs"
-                  score={doraScore(metrics.lead_time_hours, "lead_time")}
-                  color={doraColor(doraScore(metrics.lead_time_hours, "lead_time"))} />
-                <DORAGauge label="MTTR" value={metrics.mttr_hours?.toFixed(1)} unit="hrs"
-                  score={doraScore(metrics.mttr_hours, "mttr")}
-                  color={doraColor(doraScore(metrics.mttr_hours, "mttr"))} />
-                <DORAGauge label="Change Fail" value={metrics.change_failure_rate != null ? `${(metrics.change_failure_rate * 100).toFixed(0)}%` : "--"}
-                  score={doraScore(metrics.change_failure_rate, "cfr")}
-                  color={doraColor(doraScore(metrics.change_failure_rate, "cfr"))} />
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Velocity Trend</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={trends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="sprint" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="planned_points" fill="#94a3b8" name="Planned" />
-                  <Bar dataKey="completed_points" fill="#3b82f6" name="Completed" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">PR Cycle Time Trend</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="sprint" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line dataKey="cycle_time_mean_hours" stroke="#3b82f6" name="Mean" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {alerts.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-4 mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Risk Alerts</h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {alerts.map((a) => (
-                  <div key={a.id} className="flex items-start gap-2 text-sm">
-                    <span className={
-                      a.severity === "critical" ? "text-red-500" :
-                      a.severity === "warning" ? "text-yellow-500" : "text-blue-500"
-                    }>
-                      {a.severity === "critical" ? "\u{1F534}" : a.severity === "warning" ? "\u26A0\uFE0F" : "\u2139\uFE0F"}
-                    </span>
-                    <div>
-                      <p className="font-medium">{a.title}</p>
-                      {a.description && <p className="text-xs text-gray-400">{a.description}</p>}
-                      {a.engineer_login && (
-                        <p className="text-xs text-orange-500 mt-0.5">Engineer: {a.engineer_login}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Engineers</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-gray-500">
-                    <th className="pb-2 pr-4">Engineer</th>
-                    <th className="pb-2 pr-4">Velocity</th>
-                    <th className="pb-2 pr-4">Stories</th>
-                    <th className="pb-2 pr-4">PRs Merged</th>
-                    <th className="pb-2 pr-4">Cycle Time</th>
-                    <th className="pb-2 pr-4">WIP</th>
-                    <th className="pb-2 pr-4">Blocked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {engineers.map((e) => (
-                    <tr key={e.engineer} className="border-b last:border-0">
-                      <td className="py-2 pr-4 font-medium">{e.engineer}</td>
-                      <td className="py-2 pr-4">{e.completed_points}</td>
-                      <td className="py-2 pr-4">{e.story_count}</td>
-                      <td className="py-2 pr-4">{e.prs_merged}</td>
-                      <td className="py-2 pr-4">{fmtHours(e.cycle_time_mean_hours)}</td>
-                      <td className="py-2 pr-4">{e.max_concurrent_issues}</td>
-                      <td className="py-2 pr-4">{e.blocked_count}</td>
-                    </tr>
-                  ))}
-                  {engineers.length === 0 && (
-                    <tr><td colSpan={7} className="py-4 text-center text-gray-400">No data. Run poller first.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+      {persona === "sdm" && renderSDMView()}
+      {persona === "srsdm" && renderSrSDMView()}
+      {persona === "director" && renderDirectorView()}
     </div>
   );
 }

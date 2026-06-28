@@ -36,7 +36,7 @@ export default function Admin() {
 
   const regenerate = async () => {
     setRegenerating(true);
-    addLog("Regenerating AI summaries...");
+    addLog("Regenerating all AI summaries (SDM + SrSDM + Director)... this takes ~5 min");
     try {
       const r = await fetch(`${API}/admin/summaries/regenerate`, { method: "POST" });
       const data = await r.json();

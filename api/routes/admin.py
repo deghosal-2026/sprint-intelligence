@@ -1,9 +1,10 @@
 """Admin API endpoints — system status, poller status, AI summary management."""
 
+import threading
 from flask import Blueprint, jsonify, request
 from api.models import db, AISummary
 from api.poller import github_client as gh, ollama_client as llm
-from api.poller.compute import generate_ai_summaries
+from api.poller.compute import generate_all_summaries
 from api.routes.poller import POLLER_STATUS
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
@@ -18,8 +19,15 @@ def system():
     except Exception:
         pass
 
-    gh_remaining = gh.get_rate_limit_remaining()
-    llm_ok = llm.is_available()
+    try:
+        gh_remaining = gh.get_rate_limit_remaining()
+    except Exception:
+        gh_remaining = None
+
+    try:
+        llm_ok = llm.is_available()
+    except Exception:
+        llm_ok = False
 
     return jsonify({
         "db": "connected" if db_ok else "disconnected",
@@ -47,6 +55,10 @@ def list_summaries():
 
 @bp.route("/summaries/regenerate", methods=["POST"])
 def regenerate_summaries():
-    persona = request.args.get("persona", "sdm")
-    results = generate_ai_summaries(persona=persona)
-    return jsonify({"status": "ok", **results})
+    try:
+        results = generate_all_summaries()
+        return jsonify({"status": "ok", **results})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 500

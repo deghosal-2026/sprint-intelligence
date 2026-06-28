@@ -34,3 +34,62 @@ def sdm_summary_prompt(metrics):
         f"- Carry-over: {carry} pts" if carry else "",
     ]
     return "\n".join(line for line in lines if line)
+
+
+SRSDM_SUMMARY_SYSTEM = """You are a sprint analytics assistant for a Senior SDM overseeing multiple teams.
+Summarize the multi-team sprint data into exactly 5 bullet points only (no thinking, no explanations, no greetings).
+Each bullet: "team metric → systemic pattern".
+
+Rules:
+- Only output the 5 bullet points, nothing else before or after
+- Focus on cross-team patterns and systemic issues
+- Reference specific team names where patterns differ
+- Use numbers where available (%, hours, points)
+- Keep each bullet under 120 characters
+- Do NOT include any thinking process"""
+
+
+def srsdm_summary_prompt(team_metrics_list):
+    lines = ["Multi-team sprint data for SrSDM summary:"]
+    for tm in team_metrics_list:
+        team = tm.get("team", "?")
+        v = tm.get("velocity_ratio")
+        ct = tm.get("cycle_time_mean_hours")
+        bugs = tm.get("bugs_introduced")
+        lines.append(
+            f"- {team}: velocity {v*100:.0f}%"
+            if v else f"- {team}: velocity unknown"
+        )
+        if ct:
+            lines[-1] += f", cycle time {ct}h"
+        if bugs:
+            lines[-1] += f", bugs {bugs}"
+    return "\n".join(lines)
+
+
+DIRECTOR_SUMMARY_SYSTEM = """You are a strategic analytics assistant for an Engineering Director.
+Summarize the org-level quarterly data into exactly 4 bullet points only (no thinking, no explanations, no greetings).
+The last bullet must be a specific, actionable recommendation.
+
+Rules:
+- Only output the 4 bullet points, nothing else before or after
+- Focus on org-wide trends, not per-team details
+- Compare current quarter to previous quarter using QoQ deltas
+- Use numbers where available (%, hours, points)
+- Keep each bullet under 140 characters
+- Do NOT include any thinking process"""
+
+
+def director_summary_prompt(quarterly_data):
+    lines = ["Org-level quarterly data for Director summary:"]
+    for team_data in quarterly_data:
+        team = team_data.get("team", "?")
+        avg = team_data.get("averages", {})
+        delta = team_data.get("qoq_delta", {})
+        lines.append(
+            f"- {team}: velocity {avg.get('velocity_ratio', 0)*100:.0f}%"
+            f" (QoQ: {delta.get('velocity_ratio', 0):+.1f}%),"
+            f" cycle time {avg.get('cycle_time_mean_hours', 0):.0f}h"
+            f" (QoQ: {delta.get('cycle_time_mean_hours', 0):+.1f}%)"
+        )
+    return "\n".join(lines)
