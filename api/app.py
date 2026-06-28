@@ -17,6 +17,7 @@ def create_app():
     db.init_app(app)
     with app.app_context():
         from api.routes import dashboard, poller, admin, ask
+        poller._set_app(app)
         app.register_blueprint(dashboard.bp)
         app.register_blueprint(poller.bp)
         app.register_blueprint(admin.bp)

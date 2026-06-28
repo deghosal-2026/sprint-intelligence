@@ -29,7 +29,7 @@ def system():
 
     return jsonify({
         "db": "connected" if db_ok else "disconnected",
-        "ollama": "connected" if llm_ok else "disconnected",
+        "llm": "connected" if llm_ok else "disconnected",
         "github_remaining": gh_remaining,
         "poller": POLLER_STATUS,
     })

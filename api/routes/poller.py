@@ -21,6 +21,11 @@ POLLER_STATUS = {
 }
 
 _lock = threading.Lock()
+_app_ref = [None]
+
+
+def _set_app(app):
+    _app_ref[0] = app
 
 
 def _set_status(**kwargs):
@@ -73,22 +78,22 @@ def _run_regenerate():
 
 
 def _background_job(job_fn, success_key):
-    app = None
-    try:
-        from flask import current_app
-        app = current_app._get_current_object()
-    except Exception:
-        pass
-
     def _run():
-        with app.app_context():
-            try:
+        app = _app_ref[0]
+        print(f"[poller] Background thread started, app={app is not None}", flush=True)
+        if app is None:
+            _set_status(status="error", progress=None, error="No app reference")
+            return
+        try:
+            with app.app_context():
+                print(f"[poller] Running job_fn...", flush=True)
                 results = job_fn()
+                print(f"[poller] Job done: {results}", flush=True)
                 _set_status(status="idle", progress=None, error=None, **{success_key: str(results)})
-            except Exception as e:
-                tb = traceback.format_exc()
-                print(f"[poller] Background job error: {e}\n{tb}", flush=True)
-                _set_status(status="error", progress=None, error=str(e))
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(f"[poller] Background job error: {e}\n{tb}", flush=True)
+            _set_status(status="error", progress=None, error=str(e))
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()

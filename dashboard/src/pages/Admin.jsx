@@ -118,7 +118,7 @@ export default function Admin() {
           <h2 className="font-semibold mb-3">System Status</h2>
           <div className="space-y-2 text-sm">
             <p>DB: {statusDot(system?.db)} {system?.db ?? "Checking..."}</p>
-            <p>Ollama: {statusDot(system?.ollama)} {system?.ollama ?? "Checking..."}</p>
+            <p>LLM: {statusDot(system?.llm)} {system?.llm ?? "Checking..."}</p>
             <p>GitHub API: {system?.github_remaining != null ? `${system.github_remaining} remaining` : "Checking..."}</p>
           </div>
         </div>

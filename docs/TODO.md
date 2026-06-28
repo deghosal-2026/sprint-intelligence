@@ -8,13 +8,13 @@
 
 ## Known Issues
 
-1. **Admin regenerate status display** — `/api/admin/summaries/regenerate` now runs in background thread and returns immediately. Summaries generate successfully but `last_regenerate` status field may not always update. Workaround: check `/api/admin/summaries` count to verify. Minor display issue.
+1. **Admin regenerate/fetch/compute background threads** — Operations now run in background threads (no more gunicorn hangs). However, `generate_all_summaries()` loops 120 sprints × ~2s LLM calls = ~4 min, and the thread may appear stuck. The admin UI shows "running" status with progress. Summaries do generate but `last_regenerate` status field may not always update. Workaround: run directly via `docker compose exec api python3 -c "from api.app import create_app; from api.poller.compute import generate_all_summaries; app=create_app(); app.app_context().push(); generate_all_summaries()"`.
 
-2. **Poller fetch from admin UI** — `/api/poller/fetch` now runs in background thread. Returns immediately with "started" status. Frontend polls `/api/poller/status` for progress. Fetch makes live GitHub API calls for all 11 repos — may take >2 min. Data already seeded in DB.
+2. **Poller fetch from admin UI** — Runs in background thread but makes live GitHub API calls for 11 repos. Data already seeded in DB. Use only for fresh data refresh.
 
-3. **Poller compute from admin UI** — `/api/poller/compute` now runs in background thread with progress updates. Returns immediately. Compute includes metrics + DORA + alerts + forecasts + AI summaries.
+3. **Poller compute from admin UI** — Runs in background thread with progress updates. Works for metrics/DORA/alerts/forecasts. AI summary portion is slow (see #1).
 
-4. **PagerDuty token** — Added `PAGERDUTY_API_TOKEN=dev-token-placeholder` to `.env`. No real PagerDuty integration; incidents are synthetic.
+4. **PagerDuty token** — Placeholder in `.env`. No real PagerDuty integration; incidents are synthetic.
 
 ---
 
