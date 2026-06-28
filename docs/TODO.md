@@ -1,95 +1,109 @@
 # SprintSense — TODO
 
-**Status:** PRD APPROVED — June 27, 2026
-**Data source:** GitHub Issues, Projects, Milestones, PRs (6 repos)
+**Status:** SPEC APPROVED — June 27, 2026
+**Data source:** GitHub Issues, Projects, Milestones, PRs (10 repos, 10 teams, 120 sprints)
+**Spec:** `docs/spec.md`
+**GH Issues:** `#1`–`#12` on GitHub
 
 ---
 
 ## M1: Data Foundation + SDM Core (1 Team)
-**Scope:** 1 repo, SDM only. Prove the data pipeline.
+**Scope:** 1 repo, SDM only. Prove the pipeline.
+**Spec:** Sections 3, 4, 11
+**Issues:** `#1`–`#6`, `#12`
 
-- [ ] GitHub API auth + polling setup (Issues, Projects, Milestones, PRs — 4-hour interval)
-- [ ] Sprint detection: parse `sprint:YYYY-MM-DD` labels, Milestone 1:1 mapping, Project iterations
-- [ ] Story point extraction: parse `points:1` through `points:13` labels
-- [ ] Issue type extraction: parse `bug`, `feature`, `tech-debt`, `task` labels
-- [ ] Compute velocity: planned vs. completed story points per sprint (3 sprints)
-- [ ] Compute PR cycle time: first commit → merge (mean, median, P90)
-- [ ] Compute bug regression: bugs introduced vs. bugs closed per sprint
-- [ ] Compute capacity vs. actual: planned vs. delivered story points
-- [ ] SDM dashboard: 4 metric cards + trend lines + 3-sprint history
-- [ ] Engineer drill-down: per-engineer WIP, blocked issues, PR cycle time, velocity contribution
-- [ ] Data validation: flag missing story points, inconsistent labels, API failures
-- [ ] Synthetic test data pipeline (see testing strategy in PRD)
+- [ ] `#1` Project scaffolding (Docker, PostgreSQL, Flask, React, Alembic)
+- [ ] `#12` Test data generation tools (download, transform, seed scripts)
+- [ ] `#3` GitHub API client + config sync
+- [ ] `#2` Data pipeline — Phase 1 fetch (issues, PRs, milestones)
+- [ ] `#4` Sprint resolution + Phase 2 compute (metrics)
+- [ ] `#5` SDM Dashboard — 4 metric cards + Recharts + engineer table
+- [ ] `#6` Admin page — poller controls + system status
 
-**Gate:** SDM uses dashboard for 2 consecutive Mondays. Pipeline stable. → M2
+**Gate:** SDM dashboard loads 12 sprints of data. All 4 metric cards render. → M2
 
 ---
 
 ## M2: AI Summaries + Risk Alerts + DORA (1 Team)
 **Scope:** Same 1 repo. Layer intelligence on proven data.
+**Spec:** Sections 5, 7
+**Issues:** `#7`, `#8`
 
-- [ ] AI executive summary: 5-bullet consequence-first, human review toggle in UI
-- [ ] Risk alerts: stale PRs (>3 days), overloaded engineers (WIP >4), scope creep
-- [ ] DORA metrics: deployment frequency, lead time, MTTR, change failure rate
-- [ ] GitHub Actions deploy event ingestion
-- [ ] PagerDuty incident event ingestion
-- [ ] Sprint planning capacity estimate view
+- [ ] `#7` AI executive summary — 5-bullet consequence-first
+- [ ] `#7` Risk alerts: stale PRs, overloaded engineers, scope creep
+- [ ] `#7` DORA: deploy frequency, lead time, MTTR, change failure rate
+- [ ] `#7` Sprint planning capacity estimate
+- [ ] `#7` Deploy events (GitHub Actions) + incidents (PagerDuty) ingestion
+- [ ] `#8` Bug fixes from M1
 
-**Gate:** AI summary used in 2 weekly reports. Alerts <20% false positive. DORA trending. → M3
+**Gate:** AI summary rendered for all sprints. 3 alert types firing. 4 DORA gauges. → M3
 
 ---
 
 ## M3: Engineer Self-Service Dashboards (1 Team)
-**Scope:** Add ICs (Junior, Senior, Staff) to the pilot team.
+**Scope:** Add IC personas (Junior, Senior, Staff) to pilot team.
+**Spec:** Sections 6.2-6.3
+**Issue:** `#9`
 
-- [ ] Junior engineer dashboard: personal PR cycle time, story points trend, WIP, AI nudge
-- [ ] Senior engineer dashboard: personal + review/mentoring metrics + team aggregate
-- [ ] Staff engineer dashboard: personal + cross-team cycle time + blocker patterns
-- [ ] Persona-tuned default views (data open per D4, views role-aware)
-- [ ] Onboarding flow: GitHub OAuth → repo selection → label mapping → first dashboard
+- [ ] `#9` Persona selector dropdown in top bar
+- [ ] `#9` Junior engineer view: personal cycle time, story points, WIP, AI nudge
+- [ ] `#9` Senior engineer view: personal + review metrics + team aggregate
+- [ ] `#9` Staff engineer view: personal + cross-team cycle time + blockers
+- [ ] `#9` Bug fixes from M1/M2
 
-**Gate:** ≥80% ICs check dashboard at least 1x/sprint. Zero surveillance complaints. → M4
-
----
-
-## M4: Multi-Team + Senior SDM + Director Views
-**Scope:** Add 2 more repos. Senior SDM and Director personas.
-
-- [ ] Multi-repo data pipeline (3 repos, 3 teams)
-- [ ] Senior SDM view: per-team dashboards, cross-team pattern detection, multi-team exec summary
-- [ ] Director view: org-level DORA + quality + velocity, quarterly view, Director exec summary
-- [ ] No team ranking views. No per-individual data for Director.
-
-**Gate:** Senior SDM uses in 2 1:1s. Director presents to VP. → M5
+**Gate:** All 4 persona views render correctly. ≥80% adoption on pilot team. → M4
 
 ---
 
-## M5: Full Org Rollout
-**Scope:** All 6 repos, all 5 teams. All personas.
+## M4: Multi-Team + Senior SDM + Director
+**Scope:** Add 2 more repos. SrSDM and Director personas.
+**Spec:** Sections 6.2-6.3
+**Issue:** `#10`
 
-- [ ] Remaining repos/teams onboarded
-- [ ] Slack notifications: Monday morning summary, mid-sprint alerts
-- [ ] Anomaly detection: "Velocity dropped 25% — unusual vs. 12-sprint baseline"
-- [ ] Custom metric thresholds per team
-- [ ] Delivery Health Score (composite for Director QBR)
+- [ ] `#10` Multi-repo data pipeline (3 repos, 3 teams)
+- [ ] `#10` Senior SDM view: per-team tabs, cross-team patterns, multi-team summary
+- [ ] `#10` Director view: org-level DORA + quality + velocity + quarterly view
+- [ ] `#10` Bug fixes from M1-M3
 
-**Gate:** ≥80% org adoption. 3+ months DORA data. → M6
+**Gate:** SrSDM sees 3 team tabs. Director sees org DORA. Cross-team pattern detected. → M5
+
+---
+
+## M5: Full Org Rollout + Sprint Q&A
+**Scope:** All 10 repos, all 10 teams. All personas. Sprint Q&A.
+**Spec:** Sections 5.3, 6.6, 8
+**Issue:** `#11`
+
+- [ ] `#11` Sprint Q&A text box in dashboard (POST /api/ask → Ollama)
+- [ ] `#11` Full 10-team, 120-sprint data pipeline
+- [ ] `#11` Anomaly detection: velocity drop >25% vs baseline
+- [ ] `#11` Delivery Health Score (composite)
+- [ ] `#11` Custom metric thresholds per team
+- [ ] `#11` Onboarding wizard on admin page (6-step modal)
+- [ ] `#11` User guide (4 tabs)
+- [ ] `#11` Bug fixes from M4
+
+**Gate:** Q&A works for 5 test questions. Health score renders. >80% teams valid. → M6
 
 ---
 
 ## M6: Polish, Ecosystem, Self-Serve
-**Scope:** Full org. Harden, integrate, hand off.
+**Scope:** Harden, document, integrate stubs.
+**Spec:** Section 10, 11, 12.6
+**Issue:** `#11` (tracked within same epic)
 
-- [ ] DeliveryOS unified dashboard integration
-- [ ] RetroMaster integration
-- [ ] Export-to-slide for QBR
-- [ ] Trend forecasting
-- [ ] Self-service onboarding for new teams (<1 hour)
-- [ ] Performance: dashboard load <3s with 12+ sprints of data
-- [ ] Documentation: metric guides, 1:1/planning/retro usage guides, "what SprintSense is and isn't"
+- [ ] Export-to-slide: DORA + velocity charts as PNG/PDF
+- [ ] Trend forecasting stub
+- [ ] DeliveryOS integration stub (metric format standardization)
+- [ ] Self-service onboarding: config → auto-detect repos + labels
+- [ ] All edge cases handled from 10-team data run
+- [ ] Dashboard load < 3s with 120 sprints
+- [ ] README with full setup instructions
+- [ ] API documentation
+- [ ] Code cleanup, linting, docstrings
 
-**Gate:** Default sprint health tool. Self-serve onboarding. Platform-ready.
+**Gate:** All 10 acceptance criteria from spec Section 8.4 pass. README clear.
 
 ---
 
-*Derived from `docs/prd.md` Section 6 (Launch Phasing). Update checkboxes as milestones complete.*
+*Derived from `docs/spec.md`. GitHub issues `#1`–`#12` track this work. Update checkboxes as milestones complete.*
