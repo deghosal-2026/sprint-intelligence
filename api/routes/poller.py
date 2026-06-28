@@ -26,7 +26,7 @@ def _run_phase2():
     eng_metrics = compute_engineer_metrics()
     dora = compute_dora_metrics()
     alerts = detect_alerts()
-    forecasts = compute_forecasts()
+    compute_forecasts()
     ai_results = generate_all_summaries()
     return {
         "sprints": len(sprint_map),

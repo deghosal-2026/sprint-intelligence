@@ -119,12 +119,10 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
             all_contributors.append(pr["user"]["login"])
 
     eng_map = build_engineer_map(all_contributors, team_name, eng_count)
-    reverse_map = {v: k for k, v in eng_map.items()}
 
     year = 2026
     week_start = 2
     sprints = iso_week_range(year, week_start, 12)
-    sprint_start = datetime.fromisoformat(sprints[0]["start_date"])
 
     def shift_date(orig_iso):
         if not orig_iso:
@@ -159,7 +157,7 @@ def process_repo(raw_dir, output_dir, repo_full, team_info):
         sprint_label = f"sprint:{team_name}-{sprint['name']}"
 
         labels = issue.get("labels", [])
-        label_names = [l.get("name", "") for l in labels] if labels else []
+        label_names = [lbl.get("name", "") for lbl in labels] if labels else []
         is_blocked = "blocked" in label_names
 
         transformed_issues.append({

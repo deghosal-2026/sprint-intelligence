@@ -86,10 +86,16 @@ def director_summary_prompt(quarterly_data):
         team = team_data.get("team", "?")
         avg = team_data.get("averages", {})
         delta = team_data.get("qoq_delta", {})
+        vel = avg.get("velocity_ratio")
+        vel_str = f"{vel*100:.0f}%" if vel is not None else "unknown"
+        vel_delta = delta.get("velocity_ratio")
+        vel_delta_str = f"{vel_delta:+.1f}%" if vel_delta is not None else "N/A"
+        ct = avg.get("cycle_time_mean_hours")
+        ct_str = f"{ct:.0f}h" if ct is not None else "unknown"
+        ct_delta = delta.get("cycle_time_mean_hours")
+        ct_delta_str = f"{ct_delta:+.1f}%" if ct_delta is not None else "N/A"
         lines.append(
-            f"- {team}: velocity {avg.get('velocity_ratio', 0)*100:.0f}%"
-            f" (QoQ: {delta.get('velocity_ratio', 0):+.1f}%),"
-            f" cycle time {avg.get('cycle_time_mean_hours', 0):.0f}h"
-            f" (QoQ: {delta.get('cycle_time_mean_hours', 0):+.1f}%)"
+            f"- {team}: velocity {vel_str} (QoQ: {vel_delta_str}), "
+            f"cycle time {ct_str} (QoQ: {ct_delta_str})"
         )
     return "\n".join(lines)
