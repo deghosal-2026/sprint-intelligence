@@ -31,3 +31,11 @@ Thumbs.db
 pgdata/
 
 # Test data — tracked in git
+
+# Generated data
+data/transformed/
+
+# Root-level playwright deps (for screenshot tooling)
+/package.json
+/package-lock.json
+/node_modules/
