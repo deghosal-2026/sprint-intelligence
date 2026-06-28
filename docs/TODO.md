@@ -1,6 +1,6 @@
 # SprintSense — TODO
 
-**Status:** M4 IN PROGRESS — June 28, 2026 (10 teams, 120 sprints, 95 tests)
+**Status:** M4 COMPLETE — June 28, 2026 (10 teams, 120 sprints, 95 tests). M5 dropped (no org rollout). M6 polish remaining.
 **Spec:** `docs/spec.md`
 **All issues:** `#13`–`#140` on GitHub
 
@@ -178,34 +178,10 @@
 
 ---
 
-## M5: Full Org Rollout + Sprint Q&A
+## M5: Full Org Rollout + Sprint Q&A — DROPPED
 **Issues: #112–#129** (18 issues)
 
-### Features
-- [ ] [#112](https://github.com/deghosal-2026/sprint-intelligence/issues/112) F5.1 Full 10-team data pipeline
-- [ ] [#113](https://github.com/deghosal-2026/sprint-intelligence/issues/113) F5.2 120 sprints computed across all teams
-- [ ] [#114](https://github.com/deghosal-2026/sprint-intelligence/issues/114) F5.3 Sprint Q&A text box — text input + chat bubbles
-- [ ] [#115](https://github.com/deghosal-2026/sprint-intelligence/issues/115) F5.4 Sprint Q&A API — POST /api/ask
-- [ ] [#116](https://github.com/deghosal-2026/sprint-intelligence/issues/116) F5.5 Sprint Q&A Ollama integration — context + history
-- [ ] [#117](https://github.com/deghosal-2026/sprint-intelligence/issues/117) F5.6 Anomaly detection — velocity drop >25% vs 12-sprint baseline
-- [ ] [#118](https://github.com/deghosal-2026/sprint-intelligence/issues/118) F5.7 Delivery Health Score — DORA + velocity + quality composite
-- [ ] [#119](https://github.com/deghosal-2026/sprint-intelligence/issues/119) F5.8 Custom metric thresholds per team (admin page)
-- [ ] [#120](https://github.com/deghosal-2026/sprint-intelligence/issues/120) F5.9 Onboarding wizard — 6-step modal
-- [ ] [#121](https://github.com/deghosal-2026/sprint-intelligence/issues/121) F5.10 User guide — 4 tabs on admin page
-
-### Bug Fixes
-- [ ] [#122](https://github.com/deghosal-2026/sprint-intelligence/issues/122) B5.1 10-team data renders without performance degradation
-- [ ] [#123](https://github.com/deghosal-2026/sprint-intelligence/issues/123) B5.2 10 team tabs: scrollable or dropdown
-
-### Tests
-- [ ] [#124](https://github.com/deghosal-2026/sprint-intelligence/issues/124) T5.1 Q&A: velocity question → data-backed answer
-- [ ] [#125](https://github.com/deghosal-2026/sprint-intelligence/issues/125) T5.2 Q&A: overloaded engineer → correct name
-- [ ] [#126](https://github.com/deghosal-2026/sprint-intelligence/issues/126) T5.3 Q&A: offline LLM → error message
-- [ ] [#127](https://github.com/deghosal-2026/sprint-intelligence/issues/127) T5.4 Anomaly: >25% drop → alert fires
-- [ ] [#128](https://github.com/deghosal-2026/sprint-intelligence/issues/128) T5.5 Health Score: known metrics → expected composite
-- [ ] [#129](https://github.com/deghosal-2026/sprint-intelligence/issues/129) T5.6 Onboarding wizard completes in <30 mins
-
-**Gate:** Q&A works for 5 test questions. Health score renders. ≥80% teams valid. → M6
+*Dropped — no org rollout planned. Q&A, anomaly detection, health score, onboarding wizard not needed for prototype.*
 
 ---
 
