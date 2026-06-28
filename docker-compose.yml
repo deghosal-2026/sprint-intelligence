@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: sprintsense
+      POSTGRES_USER: sprintsense
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sprintsense"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./api
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://sprintsense:${DB_PASSWORD:-devpassword123}@db:5432/sprintsense
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      PAGERDUTY_API_TOKEN: ${PAGERDUTY_API_TOKEN}
+      OLLAMA_URL: http://host.docker.internal:11434
+    depends_on:
+      db:
+        condition: service_healthy
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: http://localhost:5000
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
