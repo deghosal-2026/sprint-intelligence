@@ -242,6 +242,7 @@ def compute_engineer_metrics():
             em.cycle_time_mean_hours = round(statistics.mean(ct_values), 2) if ct_values else None
             em.prs_reviewed = len(reviews_in_sprint)
             em.max_concurrent_issues = len(open_issues)
+            em.avg_wip = round(len(open_issues), 1)
             em.blocked_count = blocked
             em.computed_at = datetime.utcnow()
 
@@ -254,6 +255,9 @@ def compute_engineer_metrics():
 def detect_alerts():
     from . import config as cfg
     cfg.sync_config()
+
+    Alert.query.delete()
+    db.session.flush()
 
     stale_days = int(Threshold.query.filter_by(key="stale_pr_days").first().value or 3)
     max_wip = int(Threshold.query.filter_by(key="max_wip").first().value or 4)

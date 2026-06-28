@@ -68,6 +68,8 @@ def engineer_metrics(sprint_id):
             "cycle_time_mean_hours": float(m.cycle_time_mean_hours) if m.cycle_time_mean_hours else None,
             "prs_reviewed": m.prs_reviewed or 0,
             "max_concurrent_issues": m.max_concurrent_issues or 0,
+            "avg_wip": float(m.avg_wip) if m.avg_wip else None,
+            "avg_review_turnaround_hours": float(m.avg_review_turnaround_hours) if m.avg_review_turnaround_hours else None,
             "blocked_count": m.blocked_count or 0,
         }
         for m in metrics

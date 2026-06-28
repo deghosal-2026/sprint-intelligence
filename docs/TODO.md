@@ -1,6 +1,6 @@
 # SprintSense — TODO
 
-**Status:** M1 FEATURES COMPLETE — June 27, 2026
+**Status:** M3 COMPLETE — June 28, 2026 (95 tests, all 47 issues closed across M1-M3)
 **Spec:** `docs/spec.md`
 **All issues:** `#13`–`#140` on GitHub
 
@@ -94,39 +94,41 @@
 ### Chores ✅
 - [x] [#141](https://github.com/deghosal-2026/sprint-intelligence/issues/141) C2.1 Update transform/seed scripts for chunked raw data
 
-**Status:** 59 AI summaries generated (Llama-3.2-3B-Instruct-4bit via omlx). 1228 alerts, 4 DORA gauges, 82/82 tests passing.
+**Status:** 60 AI summaries generated (Llama-3.2-3B-Instruct-4bit via omlx). 1228 alerts, 4 DORA gauges, 82/82 tests passing.
 
 **Gate:** ✅ → M3
 
 ---
 
-## M3: Engineer Self-Service Dashboards
+## M3: Engineer Self-Service Dashboards ✅
 **Issues: #76–#92** (17 issues)
 
-### Features
-- [ ] [#76](https://github.com/deghosal-2026/sprint-intelligence/issues/76) F3.1 Persona selector dropdown — Junior/Senior/Staff/SDM
-- [ ] [#77](https://github.com/deghosal-2026/sprint-intelligence/issues/77) F3.2 Junior engineer view — personal cycle time, points, WIP, nudge
-- [ ] [#78](https://github.com/deghosal-2026/sprint-intelligence/issues/78) F3.3 Junior engineer AI nudge — coaching prompt, 2-3 sentences
-- [ ] [#79](https://github.com/deghosal-2026/sprint-intelligence/issues/79) F3.4 Senior engineer view — personal + review + team aggregate
-- [ ] [#80](https://github.com/deghosal-2026/sprint-intelligence/issues/80) F3.5 Staff engineer view — personal + cross-team + blockers
-- [ ] [#81](https://github.com/deghosal-2026/sprint-intelligence/issues/81) F3.6 Engineer sprint metrics — Phase 2 per-engineer computation
-- [ ] [#82](https://github.com/deghosal-2026/sprint-intelligence/issues/82) F3.7 Review metrics — PRs reviewed + avg turnaround
-- [ ] [#83](https://github.com/deghosal-2026/sprint-intelligence/issues/83) F3.8 Blocked issue detection — blocked label/state
-- [ ] [#84](https://github.com/deghosal-2026/sprint-intelligence/issues/84) F3.9 Persona-tuned card visibility
-- [ ] [#85](https://github.com/deghosal-2026/sprint-intelligence/issues/85) F3.10 Adaptive metric cards — fewer for junior, more for SDM
+### Features ✅
+- [x] [#76](https://github.com/deghosal-2026/sprint-intelligence/issues/76) F3.1 Persona selector dropdown — Junior/Senior/Staff/SDM
+- [x] [#77](https://github.com/deghosal-2026/sprint-intelligence/issues/77) F3.2 Junior engineer view — personal cycle time, points, WIP, nudge
+- [x] [#78](https://github.com/deghosal-2026/sprint-intelligence/issues/78) F3.3 Junior engineer AI nudge — coaching prompt, 2-3 sentences
+- [x] [#79](https://github.com/deghosal-2026/sprint-intelligence/issues/79) F3.4 Senior engineer view — personal + review + team aggregate
+- [x] [#80](https://github.com/deghosal-2026/sprint-intelligence/issues/80) F3.5 Staff engineer view — personal + cross-team + blockers
+- [x] [#81](https://github.com/deghosal-2026/sprint-intelligence/issues/81) F3.6 Engineer sprint metrics — Phase 2 per-engineer computation
+- [x] [#82](https://github.com/deghosal-2026/sprint-intelligence/issues/82) F3.7 Review metrics — PRs reviewed + avg turnaround
+- [x] [#83](https://github.com/deghosal-2026/sprint-intelligence/issues/83) F3.8 Blocked issue detection — blocked label/state
+- [x] [#84](https://github.com/deghosal-2026/sprint-intelligence/issues/84) F3.9 Persona-tuned card visibility
+- [x] [#85](https://github.com/deghosal-2026/sprint-intelligence/issues/85) F3.10 Adaptive metric cards — fewer for junior, more for SDM
 
-### Bug Fixes
-- [ ] [#86](https://github.com/deghosal-2026/sprint-intelligence/issues/86) B3.1 SDM metrics show correct team (not all teams)
-- [ ] [#87](https://github.com/deghosal-2026/sprint-intelligence/issues/87) B3.2 Engineer table respects sprint filter
-- [ ] [#88](https://github.com/deghosal-2026/sprint-intelligence/issues/88) B3.3 Alerts scoped to sprint (don't persist across sprints)
+### Bug Fixes ✅
+- [x] [#86](https://github.com/deghosal-2026/sprint-intelligence/issues/86) B3.1 SDM metrics show correct team (not all teams)
+- [x] [#87](https://github.com/deghosal-2026/sprint-intelligence/issues/87) B3.2 Engineer table respects sprint filter
+- [x] [#88](https://github.com/deghosal-2026/sprint-intelligence/issues/88) B3.3 Alerts scoped to sprint (don't persist across sprints)
 
-### Tests
-- [ ] [#89](https://github.com/deghosal-2026/sprint-intelligence/issues/89) T3.1 Junior view: only personal cards, no team data
-- [ ] [#90](https://github.com/deghosal-2026/sprint-intelligence/issues/90) T3.2 Senior view: team aggregate card renders
-- [ ] [#91](https://github.com/deghosal-2026/sprint-intelligence/issues/91) T3.3 Staff view: repo cycle time comparison renders
-- [ ] [#92](https://github.com/deghosal-2026/sprint-intelligence/issues/92) T3.4 Persona toggle switches visible cards correctly
+### Tests ✅
+- [x] [#89](https://github.com/deghosal-2026/sprint-intelligence/issues/89) T3.1 Junior view: only personal cards, no team data
+- [x] [#90](https://github.com/deghosal-2026/sprint-intelligence/issues/90) T3.2 Senior view: team aggregate card renders
+- [x] [#91](https://github.com/deghosal-2026/sprint-intelligence/issues/91) T3.3 Staff view: repo cycle time comparison renders
+- [x] [#92](https://github.com/deghosal-2026/sprint-intelligence/issues/92) T3.4 Persona toggle switches visible cards correctly
 
-**Gate:** All 4 persona views render. AI nudge generates. No surveillance complaints. → M4
+**Status:** 82 Python tests + 13 frontend vitest tests = 95 total. All 4 persona views render.
+
+**Gate:** ✅ → M4
 
 ---
 
