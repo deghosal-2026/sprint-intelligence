@@ -2,10 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt ./api/
-RUN pip install --no-cache-dir -r api/requirements.txt
+COPY api/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . ./api/
+COPY api/ ./api/
 
 EXPOSE 5000
 

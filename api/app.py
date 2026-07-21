@@ -17,9 +17,11 @@ def create_app():
     db.init_app(app)
     with app.app_context():
         from api.routes import dashboard, poller, admin, ask
+        from api.mcp_api import bp as mcp_bp
         poller._set_app(app)
         app.register_blueprint(dashboard.bp)
         app.register_blueprint(poller.bp)
         app.register_blueprint(admin.bp)
         app.register_blueprint(ask.bp)
+        app.register_blueprint(mcp_bp)
     return app
